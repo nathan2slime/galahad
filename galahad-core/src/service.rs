@@ -2,13 +2,83 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::SystemTime;
 
-use crate::{AuthError, Session, SessionId, UserId};
+use crate::{AuthError, Session, SessionId, User, UserId};
 
 /// A boxed, sendable future returned by a service operation.
 pub type BoxServiceFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// The result type shared by service operations.
 pub type ServiceResult<T> = Result<T, AuthError>;
+
+/// Input for a sign-up operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SignUpInput {
+    pub email: String,
+    pub password: String,
+}
+
+impl SignUpInput {
+    /// Creates sign-up input from an email address and plaintext password.
+    pub fn new(email: impl Into<String>, password: impl Into<String>) -> Self {
+        Self {
+            email: email.into(),
+            password: password.into(),
+        }
+    }
+}
+
+/// Input for a sign-in operation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SignInInput {
+    pub email: String,
+    pub password: String,
+}
+
+impl SignInInput {
+    /// Creates sign-in input from an email address and plaintext password.
+    pub fn new(email: impl Into<String>, password: impl Into<String>) -> Self {
+        Self {
+            email: email.into(),
+            password: password.into(),
+        }
+    }
+}
+
+/// The user and session returned after successful authentication.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthenticatedSession {
+    pub user: User,
+    pub session: Session,
+}
+
+impl AuthenticatedSession {
+    /// Creates an authenticated session result.
+    pub fn new(user: User, session: Session) -> Self {
+        Self { user, session }
+    }
+}
+
+/// Core authentication operations.
+pub trait AuthService: Send + Sync {
+    /// Registers a user.
+    fn sign_up<'a>(&'a self, input: &'a SignUpInput) -> BoxServiceFuture<'a, ServiceResult<User>>;
+
+    /// Authenticates a user and creates a session.
+    fn sign_in<'a>(
+        &'a self,
+        input: &'a SignInInput,
+    ) -> BoxServiceFuture<'a, ServiceResult<AuthenticatedSession>>;
+
+    /// Signs out the session identified by `session_id`.
+    fn sign_out<'a>(&'a self, session_id: &'a SessionId)
+        -> BoxServiceFuture<'a, ServiceResult<()>>;
+
+    /// Returns the authenticated session associated with a token hash.
+    fn current_session<'a>(
+        &'a self,
+        token_hash: &'a str,
+    ) -> BoxServiceFuture<'a, ServiceResult<Option<AuthenticatedSession>>>;
+}
 
 /// Password hashing and verification operations.
 pub trait PasswordService: Send + Sync {
@@ -58,8 +128,11 @@ mod tests {
     use std::task::{Context, Poll, Waker};
     use std::time::{Duration, SystemTime};
 
-    use super::{BoxServiceFuture, PasswordService, ServiceResult, SessionService};
-    use crate::{Session, SessionId, UserId};
+    use super::{
+        AuthService, AuthenticatedSession, BoxServiceFuture, PasswordService, ServiceResult,
+        SessionService, SignInInput, SignUpInput,
+    };
+    use crate::{Session, SessionId, User, UserId};
 
     struct FakePasswordService;
 
@@ -139,6 +212,94 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct FakeAuthService {
+        users: Mutex<HashMap<String, User>>,
+        sessions: Mutex<HashMap<SessionId, AuthenticatedSession>>,
+    }
+
+    impl AuthService for FakeAuthService {
+        fn sign_up<'a>(
+            &'a self,
+            input: &'a SignUpInput,
+        ) -> BoxServiceFuture<'a, ServiceResult<User>> {
+            let mut users = self.users.lock().unwrap();
+            let user = User::new(
+                UserId::from(format!("user-{}", users.len() + 1)),
+                input.email.clone(),
+            );
+            users.insert(input.email.clone(), user.clone());
+
+            Box::pin(std::future::ready(Ok(user)))
+        }
+
+        fn sign_in<'a>(
+            &'a self,
+            input: &'a SignInInput,
+        ) -> BoxServiceFuture<'a, ServiceResult<AuthenticatedSession>> {
+            let user = self
+                .users
+                .lock()
+                .unwrap()
+                .get(&input.email)
+                .cloned()
+                .ok_or(crate::AuthError::UserNotFound);
+
+            let authenticated_session = user.map(|user| {
+                let session_id = SessionId::from(format!(
+                    "session-{}",
+                    self.sessions.lock().unwrap().len() + 1
+                ));
+                let session = Session::new(
+                    session_id.clone(),
+                    user.id.clone(),
+                    "token-hash",
+                    SystemTime::UNIX_EPOCH + Duration::from_secs(100),
+                );
+                let authenticated_session = AuthenticatedSession::new(user, session);
+                self.sessions
+                    .lock()
+                    .unwrap()
+                    .insert(session_id, authenticated_session.clone());
+                authenticated_session
+            });
+
+            Box::pin(std::future::ready(authenticated_session))
+        }
+
+        fn sign_out<'a>(
+            &'a self,
+            session_id: &'a SessionId,
+        ) -> BoxServiceFuture<'a, ServiceResult<()>> {
+            let result = self
+                .sessions
+                .lock()
+                .unwrap()
+                .remove(session_id)
+                .map(|_| ())
+                .ok_or(crate::AuthError::SessionNotFound);
+
+            Box::pin(std::future::ready(result))
+        }
+
+        fn current_session<'a>(
+            &'a self,
+            token_hash: &'a str,
+        ) -> BoxServiceFuture<'a, ServiceResult<Option<AuthenticatedSession>>> {
+            let authenticated_session = self
+                .sessions
+                .lock()
+                .unwrap()
+                .values()
+                .find(|authenticated_session| {
+                    authenticated_session.session.token_hash == token_hash
+                })
+                .cloned();
+
+            Box::pin(std::future::ready(Ok(authenticated_session)))
+        }
+    }
+
     fn block_on<T>(future: impl Future<Output = T>) -> T {
         let waker = Waker::noop();
         let mut context = Context::from_waker(waker);
@@ -187,5 +348,32 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(revoked_session.revoked_at, Some(revoked_at));
+    }
+
+    #[test]
+    fn auth_service_is_object_safe_and_usable_without_runtime() {
+        let service: Box<dyn AuthService> = Box::new(FakeAuthService::default());
+        let sign_up_input = SignUpInput::new("user@example.com", "correct horse");
+
+        let user = block_on(service.sign_up(&sign_up_input)).unwrap();
+
+        assert_eq!(user.email, "user@example.com");
+
+        let sign_in_input = SignInInput::new("user@example.com", "correct horse");
+        let authenticated_session = block_on(service.sign_in(&sign_in_input)).unwrap();
+
+        assert_eq!(authenticated_session.user, user);
+        assert_eq!(authenticated_session.session.user_id, user.id);
+        assert_eq!(
+            block_on(service.current_session("token-hash")).unwrap(),
+            Some(authenticated_session.clone())
+        );
+
+        block_on(service.sign_out(&authenticated_session.session.id)).unwrap();
+
+        assert_eq!(
+            block_on(service.current_session("token-hash")).unwrap(),
+            None
+        );
     }
 }
