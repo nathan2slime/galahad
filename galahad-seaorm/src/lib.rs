@@ -3,4 +3,4 @@
 pub mod entity;
 pub mod repository;
 
-pub use repository::SeaOrmUserRepository;
+pub use repository::{SeaOrmSessionRepository, SeaOrmUserRepository};
