@@ -1,0 +1,15 @@
+[package]
+name = "galahad"
+version = "0.1.0"
+edition = "2021"
+description = "A facade crate for the Galahad library"
+license = "MIT"
+
+[workspace]
+resolver = "2"
+members = [".", "core", "seaorm", "actix"]
+
+[dependencies]
+galahad-actix = { path = "actix" }
+galahad-core = { path = "core" }
+galahad-seaorm = { path = "seaorm" }

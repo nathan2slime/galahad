@@ -1,0 +1,1 @@
+//! SeaORM integration for Galahad.

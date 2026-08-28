@@ -1,0 +1,1 @@
+//! Actix integration for Galahad.
