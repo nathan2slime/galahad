@@ -10,6 +10,19 @@ pub enum AuthError {
     SessionRevoked,
 }
 
+impl AuthError {
+    /// Returns a stable machine-readable code suitable for localization keys.
+    pub const fn code(&self) -> &'static str {
+        match self {
+            Self::InvalidCredentials => "auth.invalid_credentials",
+            Self::UserNotFound => "auth.user_not_found",
+            Self::SessionNotFound => "auth.session_not_found",
+            Self::SessionExpired => "auth.session_expired",
+            Self::SessionRevoked => "auth.session_revoked",
+        }
+    }
+}
+
 impl fmt::Display for AuthError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
@@ -46,5 +59,17 @@ mod tests {
         let error: &dyn Error = &AuthError::SessionRevoked;
 
         assert_eq!(error.to_string(), "session has been revoked");
+    }
+
+    #[test]
+    fn exposes_stable_localization_codes() {
+        assert_eq!(
+            AuthError::InvalidCredentials.code(),
+            "auth.invalid_credentials"
+        );
+        assert_eq!(AuthError::UserNotFound.code(), "auth.user_not_found");
+        assert_eq!(AuthError::SessionNotFound.code(), "auth.session_not_found");
+        assert_eq!(AuthError::SessionExpired.code(), "auth.session_expired");
+        assert_eq!(AuthError::SessionRevoked.code(), "auth.session_revoked");
     }
 }
