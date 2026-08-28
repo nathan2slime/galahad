@@ -7,9 +7,9 @@ license = "MIT"
 
 [workspace]
 resolver = "2"
-members = [".", "core", "seaorm", "actix"]
+members = [".", "galahad-core", "galahad-seaorm", "galahad-actix"]
 
 [dependencies]
-galahad-actix = { path = "actix" }
-galahad-core = { path = "core" }
-galahad-seaorm = { path = "seaorm" }
+galahad-actix = { path = "galahad-actix" }
+galahad-core = { path = "galahad-core" }
+galahad-seaorm = { path = "galahad-seaorm" }

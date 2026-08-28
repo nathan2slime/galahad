@@ -10,9 +10,9 @@ added in later tasks.
 ## Crate layout
 
 - `galahad`: Public facade crate that re-exports the workspace crates.
-- `core`: `galahad-core`, shared core functionality.
-- `actix`: `galahad-actix`, Actix integration.
-- `seaorm`: `galahad-seaorm`, SeaORM integration.
+- `galahad-core`: Shared core functionality.
+- `galahad-actix`: Actix integration.
+- `galahad-seaorm`: SeaORM integration.
 
 ## Development
 
