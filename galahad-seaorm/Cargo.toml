@@ -7,3 +7,6 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+sea-orm = { version = "2.0.2", default-features = false, features = ["macros", "with-chrono"] }
