@@ -12,6 +12,6 @@ pub use error::AuthError;
 pub use repository::{
     BoxRepositoryFuture, CredentialRepository, RepositoryResult, SessionRepository, UserRepository,
 };
-pub use service::{BoxServiceFuture, PasswordService, ServiceResult};
+pub use service::{BoxServiceFuture, PasswordService, ServiceResult, SessionService};
 pub use session::{Session, SessionId};
 pub use user::{User, UserId};
