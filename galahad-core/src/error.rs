@@ -8,6 +8,7 @@ pub enum AuthError {
     SessionNotFound,
     SessionExpired,
     SessionRevoked,
+    PersistenceFailure,
 }
 
 impl AuthError {
@@ -19,6 +20,7 @@ impl AuthError {
             Self::SessionNotFound => "auth.session_not_found",
             Self::SessionExpired => "auth.session_expired",
             Self::SessionRevoked => "auth.session_revoked",
+            Self::PersistenceFailure => "auth.persistence_failure",
         }
     }
 }
@@ -31,6 +33,7 @@ impl fmt::Display for AuthError {
             Self::SessionNotFound => "session not found",
             Self::SessionExpired => "session has expired",
             Self::SessionRevoked => "session has been revoked",
+            Self::PersistenceFailure => "persistence operation failed",
         };
 
         formatter.write_str(message)
@@ -52,6 +55,10 @@ mod tests {
             "invalid credentials"
         );
         assert_eq!(AuthError::SessionExpired.to_string(), "session has expired");
+        assert_eq!(
+            AuthError::PersistenceFailure.to_string(),
+            "persistence operation failed"
+        );
     }
 
     #[test]
@@ -71,5 +78,9 @@ mod tests {
         assert_eq!(AuthError::SessionNotFound.code(), "auth.session_not_found");
         assert_eq!(AuthError::SessionExpired.code(), "auth.session_expired");
         assert_eq!(AuthError::SessionRevoked.code(), "auth.session_revoked");
+        assert_eq!(
+            AuthError::PersistenceFailure.code(),
+            "auth.persistence_failure"
+        );
     }
 }
