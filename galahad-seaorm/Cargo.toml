@@ -9,4 +9,5 @@ license = "MIT"
 path = "src/lib.rs"
 
 [dependencies]
+galahad-core = { path = "../galahad-core" }
 sea-orm = { version = "2.0.2", default-features = false, features = ["macros", "with-chrono"] }

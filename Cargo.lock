@@ -720,6 +720,7 @@ version = "0.1.0"
 name = "galahad-seaorm"
 version = "0.1.0"
 dependencies = [
+ "galahad-core",
  "sea-orm",
 ]
 
