@@ -215,6 +215,21 @@ mod tests {
             Box::pin(std::future::ready(Ok(())))
         }
 
+        fn revoke<'a>(
+            &'a self,
+            id: &'a SessionId,
+            revoked_at: SystemTime,
+        ) -> BoxRepositoryFuture<'a, RepositoryResult<()>> {
+            let result = self
+                .sessions
+                .lock()
+                .unwrap()
+                .get_mut(id)
+                .map(|session| session.revoke(revoked_at))
+                .ok_or(crate::AuthError::SessionNotFound);
+            Box::pin(std::future::ready(result))
+        }
+
         fn delete<'a>(
             &'a self,
             id: &'a SessionId,

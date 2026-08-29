@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::pin::Pin;
+use std::time::SystemTime;
 
 use crate::{AuthError, PasswordCredential, Session, SessionId, User, UserId};
 
@@ -58,6 +59,13 @@ pub trait SessionRepository: Send + Sync {
 
     /// Persists a session.
     fn save<'a>(&'a self, session: &'a Session) -> BoxRepositoryFuture<'a, RepositoryResult<()>>;
+
+    /// Revokes a session by identifier.
+    fn revoke<'a>(
+        &'a self,
+        id: &'a SessionId,
+        revoked_at: SystemTime,
+    ) -> BoxRepositoryFuture<'a, RepositoryResult<()>>;
 
     /// Deletes a session by identifier.
     fn delete<'a>(&'a self, id: &'a SessionId) -> BoxRepositoryFuture<'a, RepositoryResult<()>>;
@@ -171,6 +179,21 @@ mod tests {
             Box::pin(std::future::ready(Ok(())))
         }
 
+        fn revoke<'a>(
+            &'a self,
+            id: &'a SessionId,
+            revoked_at: SystemTime,
+        ) -> BoxRepositoryFuture<'a, RepositoryResult<()>> {
+            let result = self
+                .sessions
+                .lock()
+                .unwrap()
+                .get_mut(id)
+                .map(|session| session.revoke(revoked_at))
+                .ok_or(crate::AuthError::SessionNotFound);
+            Box::pin(std::future::ready(result))
+        }
+
         fn delete<'a>(
             &'a self,
             id: &'a SessionId,
@@ -244,7 +267,20 @@ mod tests {
         );
         assert_eq!(
             block_on(repository.find_by_token_hash("token-hash")).unwrap(),
-            Some(session)
+            Some(session.clone())
+        );
+        let revoked_at = SystemTime::UNIX_EPOCH + Duration::from_secs(30);
+        block_on(repository.revoke(&SessionId::from("session-1"), revoked_at)).unwrap();
+        let revoked_session = block_on(repository.find_by_id(&SessionId::from("session-1")))
+            .unwrap()
+            .unwrap();
+        assert_eq!(revoked_session.revoked_at, Some(revoked_at));
+        assert_eq!(revoked_session.user_id, session.user_id);
+        assert_eq!(revoked_session.token_hash, session.token_hash);
+        assert_eq!(revoked_session.expires_at, session.expires_at);
+        assert_eq!(
+            block_on(repository.revoke(&SessionId::from("missing-session"), revoked_at)),
+            Err(crate::AuthError::SessionNotFound)
         );
         block_on(repository.delete(&SessionId::from("session-1"))).unwrap();
         assert_eq!(
