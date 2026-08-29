@@ -9,6 +9,7 @@ pub enum AuthError {
     SessionExpired,
     SessionRevoked,
     PersistenceFailure,
+    PasswordHashingFailure,
 }
 
 impl AuthError {
@@ -21,6 +22,7 @@ impl AuthError {
             Self::SessionExpired => "auth.session_expired",
             Self::SessionRevoked => "auth.session_revoked",
             Self::PersistenceFailure => "auth.persistence_failure",
+            Self::PasswordHashingFailure => "auth.password_hashing_failure",
         }
     }
 }
@@ -34,6 +36,7 @@ impl fmt::Display for AuthError {
             Self::SessionExpired => "session has expired",
             Self::SessionRevoked => "session has been revoked",
             Self::PersistenceFailure => "persistence operation failed",
+            Self::PasswordHashingFailure => "password hashing failed",
         };
 
         formatter.write_str(message)
@@ -59,6 +62,10 @@ mod tests {
             AuthError::PersistenceFailure.to_string(),
             "persistence operation failed"
         );
+        assert_eq!(
+            AuthError::PasswordHashingFailure.to_string(),
+            "password hashing failed"
+        );
     }
 
     #[test]
@@ -81,6 +88,10 @@ mod tests {
         assert_eq!(
             AuthError::PersistenceFailure.code(),
             "auth.persistence_failure"
+        );
+        assert_eq!(
+            AuthError::PasswordHashingFailure.code(),
+            "auth.password_hashing_failure"
         );
     }
 }
