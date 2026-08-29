@@ -10,7 +10,7 @@ use galahad_core::{
 use crate::cookie::{expired_session_cookie_for, session_cookie_for};
 use crate::handler::{current_session, sign_in, sign_out, sign_up};
 
-const DEFAULT_SESSION_COOKIE_NAME: &str = "galahad_session";
+pub(crate) const DEFAULT_SESSION_COOKIE_NAME: &str = "galahad_session";
 
 /// Actix authentication configuration and route dependencies.
 #[derive(Clone)]

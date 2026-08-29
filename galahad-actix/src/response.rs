@@ -3,12 +3,14 @@ use std::time::SystemTime;
 use galahad_core::{AuthenticatedSession, User};
 use serde::Serialize;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Serialize)]
 pub(crate) struct ErrorResponse {
     pub(crate) code: &'static str,
     pub(crate) message: &'static str,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Serialize)]
 pub(crate) struct UserResponse {
     id: String,
@@ -24,8 +26,9 @@ impl From<User> for UserResponse {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Serialize)]
-struct SessionResponse {
+pub(crate) struct SessionResponse {
     id: String,
     expires_at_unix_seconds: u64,
 }
@@ -45,6 +48,7 @@ impl From<galahad_core::Session> for SessionResponse {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Serialize)]
 pub(crate) struct AuthenticatedSessionResponse {
     user: UserResponse,
