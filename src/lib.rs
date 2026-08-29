@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 pub use galahad_actix as actix;
+#[cfg(feature = "openapi")]
+pub use galahad_actix::GalahadActixOpenApi;
 pub use galahad_core as core;
 pub use galahad_seaorm as seaorm;
 

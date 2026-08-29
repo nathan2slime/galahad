@@ -46,6 +46,16 @@ sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustl
 sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 ```
 
+Enable OpenAPI documentation when you want to expose the generated spec or
+Swagger UI from your application:
+
+```toml
+[dependencies]
+galahad = { git = "https://github.com/nathan2slime/galahad", features = ["openapi"] }
+utoipa = "5"
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
+```
+
 ## Quick Start
 
 Create the database connection, run Galahad migrations, build the default
@@ -83,6 +93,57 @@ async fn main() -> std::io::Result<()> {
         .await
 }
 ```
+
+## OpenAPI
+
+With the `openapi` feature enabled, Galahad exposes an Utoipa document for the
+Actix authentication endpoints.
+
+```rust
+use actix_web::{App, HttpServer};
+use galahad::{GalahadActixOpenApi, GalahadActixPostgres};
+use galahad::seaorm::Migrator;
+use sea_orm::Database;
+use sea_orm_migration::MigratorTrait;
+use utoipa_swagger_ui::SwaggerUi;
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let db = Database::connect(std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"))
+        .await
+        .expect("database connection failed");
+
+    Migrator::up(&db, None)
+        .await
+        .expect("database migration failed");
+
+    let auth = GalahadActixPostgres::new(db)
+        .with_session_cookie_name("app_session")
+        .build();
+    let openapi = GalahadActixOpenApi::openapi_with_session_cookie_name("app_session");
+
+    HttpServer::new(move || {
+        App::new()
+            .configure(|config| auth.routes(config))
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone()),
+            )
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+}
+```
+
+The generated OpenAPI document includes:
+
+- `POST /auth/sign-up`
+- `POST /auth/sign-in`
+- `POST /auth/sign-out`
+- `GET /auth/session`
+- Request and response schemas
+- Cookie authentication using the configured session cookie name
 
 ## HTTP API
 

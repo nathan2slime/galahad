@@ -5,9 +5,13 @@ mod cookie;
 mod error;
 mod extractor;
 mod handler;
+#[cfg(feature = "openapi")]
+mod openapi;
 mod request;
 mod response;
 
 pub use config::GalahadActix;
 pub use error::ActixAuthError;
 pub use extractor::{AuthenticatedUser, OptionalUser};
+#[cfg(feature = "openapi")]
+pub use openapi::GalahadActixOpenApi;

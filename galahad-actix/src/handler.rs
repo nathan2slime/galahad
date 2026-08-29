@@ -8,6 +8,20 @@ use crate::request::AuthRequest;
 use crate::response::{AuthenticatedSessionResponse, UserResponse};
 use crate::{ActixAuthError, GalahadActix};
 
+#[cfg_attr(
+    feature = "openapi",
+    utoipa::path(
+        post,
+        path = "/auth/sign-up",
+        tag = "auth",
+        request_body = AuthRequest,
+        responses(
+            (status = 200, description = "User signed up successfully", body = UserResponse),
+            (status = 400, description = "Invalid request or user already exists", body = crate::response::ErrorResponse),
+            (status = 500, description = "Authentication service failure", body = crate::response::ErrorResponse)
+        )
+    )
+)]
 pub(crate) async fn sign_up(
     auth: web::Data<GalahadActix>,
     request: web::Json<AuthRequest>,
@@ -20,6 +34,21 @@ pub(crate) async fn sign_up(
     Ok(web::Json(UserResponse::from(user)))
 }
 
+#[cfg_attr(
+    feature = "openapi",
+    utoipa::path(
+        post,
+        path = "/auth/sign-in",
+        tag = "auth",
+        request_body = AuthRequest,
+        responses(
+            (status = 200, description = "User signed in successfully", body = AuthenticatedSessionResponse),
+            (status = 400, description = "Invalid request", body = crate::response::ErrorResponse),
+            (status = 401, description = "Invalid credentials", body = crate::response::ErrorResponse),
+            (status = 500, description = "Authentication service failure", body = crate::response::ErrorResponse)
+        )
+    )
+)]
 pub(crate) async fn sign_in(
     auth: web::Data<GalahadActix>,
     request: web::Json<AuthRequest>,
@@ -37,6 +66,19 @@ pub(crate) async fn sign_in(
         )))
 }
 
+#[cfg_attr(
+    feature = "openapi",
+    utoipa::path(
+        post,
+        path = "/auth/sign-out",
+        tag = "auth",
+        security(("GalahadSession" = [])),
+        responses(
+            (status = 204, description = "User signed out successfully"),
+            (status = 500, description = "Authentication service failure", body = crate::response::ErrorResponse)
+        )
+    )
+)]
 pub(crate) async fn sign_out(
     auth: web::Data<GalahadActix>,
     request: HttpRequest,
@@ -52,6 +94,20 @@ pub(crate) async fn sign_out(
         .finish())
 }
 
+#[cfg_attr(
+    feature = "openapi",
+    utoipa::path(
+        get,
+        path = "/auth/session",
+        tag = "auth",
+        security(("GalahadSession" = [])),
+        responses(
+            (status = 200, description = "Current authenticated session", body = AuthenticatedSessionResponse),
+            (status = 401, description = "Missing, expired, revoked, or unknown session", body = crate::response::ErrorResponse),
+            (status = 500, description = "Authentication service failure", body = crate::response::ErrorResponse)
+        )
+    )
+)]
 pub(crate) async fn current_session(
     auth: web::Data<GalahadActix>,
     request: HttpRequest,
