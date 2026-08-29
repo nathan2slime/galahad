@@ -21,7 +21,7 @@ pub use service::{
     Argon2idPasswordService, AuthService, AuthenticatedSession, BoxServiceFuture, PasswordService,
     ServiceResult, SessionService, SignInInput, SignUpInput,
 };
-pub use session::{Session, SessionId};
+pub use session::{Session, SessionExpirationPolicy, SessionId};
 pub use signin::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
 pub use signup::{EmailPasswordSignUpService, UserIdGenerator};
 pub use token::{
