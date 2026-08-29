@@ -31,6 +31,29 @@ impl AuthError {
             Self::PasswordHashingFailure => "auth.password_hashing_failure",
         }
     }
+
+    /// Returns a stable machine-readable code safe to expose to clients.
+    pub const fn public_code(&self) -> &'static str {
+        match self {
+            Self::UserAlreadyExists | Self::UserNotFound => "auth.request_failed",
+            _ => self.code(),
+        }
+    }
+
+    /// Returns a message safe to expose to clients.
+    pub const fn public_message(&self) -> &'static str {
+        match self {
+            Self::UserAlreadyExists | Self::UserNotFound => "request failed",
+            Self::InvalidEmail => "invalid email",
+            Self::InvalidPassword => "invalid password",
+            Self::InvalidCredentials => "invalid credentials",
+            Self::SessionNotFound => "session not found",
+            Self::SessionExpired => "session has expired",
+            Self::SessionRevoked => "session has been revoked",
+            Self::PersistenceFailure => "persistence operation failed",
+            Self::PasswordHashingFailure => "password hashing failed",
+        }
+    }
 }
 
 impl fmt::Display for AuthError {
@@ -113,6 +136,37 @@ mod tests {
         assert_eq!(
             AuthError::PasswordHashingFailure.code(),
             "auth.password_hashing_failure"
+        );
+    }
+
+    #[test]
+    fn exposes_user_enumeration_safe_public_codes() {
+        assert_eq!(
+            AuthError::UserAlreadyExists.public_code(),
+            "auth.request_failed"
+        );
+        assert_eq!(AuthError::UserNotFound.public_code(), "auth.request_failed");
+        assert_eq!(
+            AuthError::InvalidCredentials.public_code(),
+            "auth.invalid_credentials"
+        );
+        assert_eq!(AuthError::InvalidEmail.public_code(), "auth.invalid_email");
+    }
+
+    #[test]
+    fn exposes_user_enumeration_safe_public_messages() {
+        assert_eq!(
+            AuthError::UserAlreadyExists.public_message(),
+            "request failed"
+        );
+        assert_eq!(AuthError::UserNotFound.public_message(), "request failed");
+        assert_eq!(
+            AuthError::InvalidCredentials.public_message(),
+            "invalid credentials"
+        );
+        assert_eq!(
+            AuthError::InvalidPassword.public_message(),
+            "invalid password"
         );
     }
 }
