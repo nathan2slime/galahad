@@ -94,10 +94,12 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-## OpenAPI
+## OpenAPI Documentation
 
 With the `openapi` feature enabled, Galahad exposes an Utoipa document for the
-Actix authentication endpoints.
+Actix authentication endpoints. Applications can serve the generated document as
+JSON, attach it to Swagger UI, or merge it into a larger application OpenAPI
+spec.
 
 ```rust
 use actix_web::{App, HttpServer};
@@ -144,6 +146,10 @@ The generated OpenAPI document includes:
 - `GET /auth/session`
 - Request and response schemas
 - Cookie authentication using the configured session cookie name
+
+Use `GalahadActixOpenApi::openapi()` when using the default `galahad_session`
+cookie name. Use `GalahadActixOpenApi::openapi_with_session_cookie_name(...)`
+when the Actix integration is configured with a custom cookie name.
 
 ## HTTP API
 
