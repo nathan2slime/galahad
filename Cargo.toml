@@ -12,4 +12,6 @@ members = [".", "galahad-core", "galahad-seaorm", "galahad-actix"]
 [dependencies]
 galahad-actix = { path = "galahad-actix" }
 galahad-core = { path = "galahad-core" }
-galahad-seaorm = { path = "galahad-seaorm" }
+galahad-seaorm = { path = "galahad-seaorm", features = ["postgres"] }
+sea-orm = { version = "2.0.2", default-features = false }
+uuid = { version = "1", features = ["v4"] }

@@ -42,34 +42,22 @@ your application.
 [dependencies]
 actix-web = "4"
 galahad = { git = "https://github.com/nathan2slime/galahad" }
-galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
 sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
-uuid = { version = "1", features = ["v4"] }
 ```
 
 ## Quick Start
 
-Create the database connection, run Galahad migrations, wire the authentication
-services, and register the Actix routes.
+Create the database connection, run Galahad migrations, build the default
+Actix + PostgreSQL integration, and register the routes.
 
 ```rust
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use actix_web::{App, HttpServer};
-use galahad::actix::GalahadActix;
-use galahad::core::{
-    Argon2idPasswordService, BoxServiceFuture, EmailPasswordSignInDependencies,
-    EmailPasswordSignInService, EmailPasswordSignUpService, OsSessionTokenGenerator,
-    ServiceResult, Session, SessionExpirationPolicy, SessionId, SessionLogoutService,
-    SessionLookupService, SessionRepository, SessionService, Sha256SessionTokenHasher,
-    SignInSessionInput, UserId,
-};
-use galahad::seaorm::{
-    Migrator, SeaOrmCredentialRepository, SeaOrmSessionRepository, SeaOrmUserRepository,
-};
-use sea_orm::{Database, DatabaseConnection};
+use galahad::seaorm::Migrator;
+use galahad::GalahadActixPostgres;
+use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 
 #[actix_web::main]
@@ -84,115 +72,15 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("database migration failed");
 
-    let auth = build_auth(db);
+    let auth = GalahadActixPostgres::new(db)
+        .with_session_cookie_name("app_session")
+        .with_session_ttl(Duration::from_secs(60 * 60 * 24 * 7))
+        .build();
 
     HttpServer::new(move || App::new().configure(|config| auth.routes(config)))
         .bind(("127.0.0.1", 8080))?
         .run()
         .await
-}
-
-fn build_auth(db: DatabaseConnection) -> GalahadActix {
-    let users = Arc::new(SeaOrmUserRepository::new(db.clone()));
-    let credentials = Arc::new(SeaOrmCredentialRepository::new(db.clone()));
-    let sessions = Arc::new(SeaOrmSessionRepository::new(db.clone()));
-    let session_service = Arc::new(PostgresSessionService::new(db));
-    let password_service = Arc::new(Argon2idPasswordService::new());
-    let token_hasher = Arc::new(Sha256SessionTokenHasher::new());
-
-    let sign_up_service = Arc::new(EmailPasswordSignUpService::new(
-        users.clone(),
-        credentials.clone(),
-        password_service.clone(),
-        Arc::new(|| UserId::from(uuid::Uuid::new_v4().to_string())),
-    ));
-
-    let sign_in_service = Arc::new(EmailPasswordSignInService::new(
-        EmailPasswordSignInDependencies {
-            user_repository: users.clone(),
-            credential_repository: credentials,
-            password_service,
-            session_service,
-            token_generator: Arc::new(OsSessionTokenGenerator::new()),
-            token_hasher: token_hasher.clone(),
-            expiration_policy: SessionExpirationPolicy::new(Duration::from_secs(60 * 60 * 24 * 7)),
-            session_input_provider: Arc::new(|| SignInSessionInput::new(SystemTime::now())),
-        },
-    ));
-
-    let logout_service = Arc::new(SessionLogoutService::new(
-        sessions.clone(),
-        token_hasher.clone(),
-    ));
-    let lookup_service = Arc::new(SessionLookupService::new(
-        users,
-        sessions,
-        token_hasher,
-    ));
-
-    GalahadActix::new(
-        sign_up_service,
-        sign_in_service,
-        logout_service,
-        lookup_service,
-    )
-}
-
-struct PostgresSessionService {
-    db: DatabaseConnection,
-}
-
-impl PostgresSessionService {
-    fn new(db: DatabaseConnection) -> Self {
-        Self { db }
-    }
-}
-
-impl SessionService for PostgresSessionService {
-    fn create_session<'a>(
-        &'a self,
-        user_id: &'a UserId,
-        token_hash: &'a str,
-        expires_at: SystemTime,
-    ) -> BoxServiceFuture<'a, ServiceResult<Session>> {
-        Box::pin(async move {
-            let session = Session::new(
-                SessionId::from(uuid::Uuid::new_v4().to_string()),
-                user_id.clone(),
-                token_hash,
-                expires_at,
-            );
-
-            SeaOrmSessionRepository::new(self.db.clone())
-                .save(&session)
-                .await?;
-
-            Ok(session)
-        })
-    }
-
-    fn find_session_by_token_hash<'a>(
-        &'a self,
-        token_hash: &'a str,
-    ) -> BoxServiceFuture<'a, ServiceResult<Option<Session>>> {
-        Box::pin(async move {
-            SeaOrmSessionRepository::new(self.db.clone())
-                .find_by_token_hash(token_hash)
-                .await
-        })
-    }
-
-    fn revoke_session<'a>(
-        &'a self,
-        session_id: &'a SessionId,
-        revoked_at: SystemTime,
-    ) -> BoxServiceFuture<'a, ServiceResult<()>> {
-        Box::pin(async move {
-            SeaOrmSessionRepository::new(self.db.clone())
-                .revoke(session_id, revoked_at)
-                .await
-        })
-    }
 }
 ```
 
