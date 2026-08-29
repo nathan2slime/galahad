@@ -3,6 +3,7 @@
 mod credential;
 mod email;
 mod error;
+mod lookup;
 mod password;
 mod repository;
 mod service;
@@ -14,6 +15,7 @@ mod user;
 
 pub use credential::PasswordCredential;
 pub use error::AuthError;
+pub use lookup::SessionLookupService;
 pub use repository::{
     BoxRepositoryFuture, CredentialRepository, RepositoryResult, SessionRepository, UserRepository,
 };

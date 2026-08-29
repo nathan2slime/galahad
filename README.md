@@ -20,35 +20,44 @@
 ## Features
 
 - Framework-independent core authentication domain
-- Strong domain types for users, password credentials, and sessions
+- Strong domain types for users, password credentials, sessions, and session tokens
 - Object-safe repository traits for persistence adapters
-- Object-safe service contracts for password and session workflows
-- Stable authentication error codes suitable for application-level i18n
+- Object-safe service contracts for password, session, and token workflows
+- Argon2id password hashing and SHA-256 session token hashing
+- Secure session token generation using the operating system CSPRNG
+- Session expiration, revocation, and lookup primitives
+- Stable internal and public-safe authentication error codes suitable for application-level i18n
 - English fallback error messages for developer-facing output
 - Facade crate with separate crates for core, Actix, and SeaORM integrations
+- SeaORM persistence adapter with PostgreSQL support
 - CI checks for formatting, linting, and tests
 
 ## Current Scope
 
 Galahad is currently in early MVP development. The project includes core domain
-types and contracts, while concrete framework and persistence adapters are being
-built incrementally.
+types, concrete password/session services, and a SeaORM persistence adapter.
+Actix Web integration is still planned.
 
 Implemented so far:
 
 - `galahad-core` domain models
 - `UserRepository`, `CredentialRepository`, and `SessionRepository` contracts
 - `PasswordService` and `SessionService` contracts
-- `AuthError` with stable localization codes
+- Argon2id password hashing
+- Email/password sign up and sign in services
+- Email and minimum password validation
+- User-enumeration-safe public error mapping
+- Secure session token generation
+- Session token hashing
+- Session expiration policy, revocation, and lookup
+- SeaORM entities, repositories, migrations, PostgreSQL support, transactions, and integration tests
+- `AuthError` with stable internal and public-safe localization codes
 
 Planned for the MVP:
 
-- SeaORM persistence adapter
-- PostgreSQL support
-- Argon2id password hashing
-- Session token generation and hashing
 - Actix Web routes and extractors
 - HttpOnly cookie support
+- Developer-experience facade builder
 
 ## Documentation
 
@@ -59,9 +68,9 @@ Planned for the MVP:
 ## Crate Layout
 
 - `galahad`: Public facade crate that re-exports the workspace crates.
-- `galahad-core`: Core authentication domain, errors, repositories, and service contracts.
+- `galahad-core`: Core authentication domain, errors, repositories, services, and token utilities.
 - `galahad-actix`: Planned Actix Web integration crate.
-- `galahad-seaorm`: Planned SeaORM persistence integration crate.
+- `galahad-seaorm`: SeaORM persistence integration crate.
 
 ## Example
 
@@ -77,19 +86,30 @@ Code:
 ```rust
 use std::time::{Duration, SystemTime};
 
-use galahad::core::{Session, SessionId, User, UserId};
+use galahad::core::{
+    OsSessionTokenGenerator, Session, SessionExpirationPolicy, SessionId,
+    SessionTokenGenerator, SessionTokenHasher, Sha256SessionTokenHasher, User, UserId,
+};
 
-let user = User::new(UserId::from("user-1"), "user@example.com");
-let expires_at = SystemTime::UNIX_EPOCH + Duration::from_secs(3600);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let user = User::new(UserId::from("user-1"), "user@example.com");
+    let now = SystemTime::UNIX_EPOCH;
+    let expires_at = SessionExpirationPolicy::new(Duration::from_secs(3600))
+        .expires_at(now)?;
+    let token = OsSessionTokenGenerator::new().generate();
+    let token_hash = Sha256SessionTokenHasher::new().hash_token(&token);
 
-let session = Session::new(
-    SessionId::from("session-1"),
-    user.id.clone(),
-    "hashed-session-token",
-    expires_at,
-);
+    let session = Session::new(
+        SessionId::from("session-1"),
+        user.id.clone(),
+        token_hash.as_str(),
+        expires_at,
+    );
 
-assert!(session.is_active_at(SystemTime::UNIX_EPOCH));
+    assert!(session.is_active_at(now));
+
+    Ok(())
+}
 ```
 
 ## Development
