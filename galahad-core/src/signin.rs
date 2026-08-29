@@ -71,6 +71,8 @@ impl EmailPasswordSignInService {
         input: &'a SignInInput,
     ) -> BoxServiceFuture<'a, ServiceResult<AuthenticatedSession>> {
         Box::pin(async move {
+            crate::email::validate_email(&input.email)?;
+
             let Some(user) = self.user_repository.find_by_email(&input.email).await? else {
                 return Err(crate::AuthError::InvalidCredentials);
             };
@@ -396,6 +398,19 @@ mod tests {
         let result = block_on(service.sign_in(&input));
 
         assert_eq!(result, Err(crate::AuthError::InvalidCredentials));
+        assert!(repositories.sessions.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalid_email_is_rejected_without_creating_session() {
+        let repositories = Arc::new(InMemoryRepositories::default());
+        insert_user_with_credential(&repositories);
+        let service = service(&repositories);
+        let input = SignInInput::new("not-an-email", "correct horse");
+
+        let result = block_on(service.sign_in(&input));
+
+        assert_eq!(result, Err(crate::AuthError::InvalidEmail));
         assert!(repositories.sessions.lock().unwrap().is_empty());
     }
 }

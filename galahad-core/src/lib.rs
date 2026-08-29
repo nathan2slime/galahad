@@ -1,6 +1,7 @@
 //! Core functionality for Galahad.
 
 mod credential;
+mod email;
 mod error;
 mod repository;
 mod service;
