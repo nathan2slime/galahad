@@ -9,6 +9,7 @@ mod service;
 mod session;
 mod signin;
 mod signup;
+mod token;
 mod user;
 
 pub use credential::PasswordCredential;
@@ -23,4 +24,5 @@ pub use service::{
 pub use session::{Session, SessionId};
 pub use signin::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
 pub use signup::{EmailPasswordSignUpService, UserIdGenerator};
+pub use token::{OsSessionTokenGenerator, SessionToken, SessionTokenGenerator};
 pub use user::{User, UserId};
