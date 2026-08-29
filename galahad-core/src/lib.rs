@@ -24,5 +24,8 @@ pub use service::{
 pub use session::{Session, SessionId};
 pub use signin::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
 pub use signup::{EmailPasswordSignUpService, UserIdGenerator};
-pub use token::{OsSessionTokenGenerator, SessionToken, SessionTokenGenerator};
+pub use token::{
+    OsSessionTokenGenerator, SessionToken, SessionTokenGenerator, SessionTokenHash,
+    SessionTokenHasher, Sha256SessionTokenHasher,
+};
 pub use user::{User, UserId};
