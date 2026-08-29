@@ -102,6 +102,30 @@ async fn postgres_migrations_and_repositories_work() {
         Some(session.clone())
     );
 
+    let revoked_at = SystemTime::UNIX_EPOCH + Duration::from_secs(30);
+    session_repository
+        .revoke(&session.id, revoked_at)
+        .await
+        .expect("session should be revoked");
+    let revoked_session = session_repository
+        .find_by_id(&session.id)
+        .await
+        .expect("revoked session lookup should succeed")
+        .expect("revoked session should still exist");
+    assert_eq!(revoked_session.revoked_at, Some(revoked_at));
+    assert_eq!(revoked_session.user_id, session.user_id);
+    assert_eq!(revoked_session.token_hash, session.token_hash);
+    assert_eq!(revoked_session.expires_at, session.expires_at);
+    assert_eq!(
+        session_repository
+            .revoke(
+                &SessionId::from("missing-session"),
+                SystemTime::UNIX_EPOCH + Duration::from_secs(40),
+            )
+            .await,
+        Err(galahad_core::AuthError::SessionNotFound)
+    );
+
     session_repository
         .delete(&session.id)
         .await

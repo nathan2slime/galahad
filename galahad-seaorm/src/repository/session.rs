@@ -2,6 +2,7 @@ use galahad_core::{
     AuthError, BoxRepositoryFuture, RepositoryResult, Session, SessionId, SessionRepository, UserId,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use std::time::SystemTime;
 
 use crate::entity::session;
 use crate::repository::SeaOrmConnection;
@@ -97,6 +98,34 @@ impl SessionRepository for SeaOrmSessionRepository<'_> {
             result
                 .map(|_| ())
                 .map_err(|_| AuthError::PersistenceFailure)
+        })
+    }
+
+    fn revoke<'a>(
+        &'a self,
+        id: &'a SessionId,
+        revoked_at: SystemTime,
+    ) -> BoxRepositoryFuture<'a, RepositoryResult<()>> {
+        Box::pin(async move {
+            let now = sea_orm::prelude::ChronoUtc::now();
+            let model = session::ActiveModel {
+                revoked_at: Set(Some(revoked_at.into())),
+                updated_at: Set(now),
+                ..Default::default()
+            };
+            let query = session::Entity::update_many()
+                .set(model)
+                .filter(session::Column::Id.eq(id.as_str()));
+            let result = match &self.db {
+                SeaOrmConnection::Database(db) => query.exec(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.exec(*transaction).await,
+            };
+
+            match result {
+                Ok(result) if result.rows_affected == 0 => Err(AuthError::SessionNotFound),
+                Ok(_) => Ok(()),
+                Err(_) => Err(AuthError::PersistenceFailure),
+            }
         })
     }
 
