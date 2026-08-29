@@ -5,6 +5,7 @@ mod error;
 mod repository;
 mod service;
 mod session;
+mod signin;
 mod signup;
 mod user;
 
@@ -18,5 +19,6 @@ pub use service::{
     ServiceResult, SessionService, SignInInput, SignUpInput,
 };
 pub use session::{Session, SessionId};
+pub use signin::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
 pub use signup::{EmailPasswordSignUpService, UserIdGenerator};
 pub use user::{User, UserId};
