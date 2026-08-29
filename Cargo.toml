@@ -9,6 +9,10 @@ license = "MIT"
 resolver = "2"
 members = [".", "galahad-core", "galahad-seaorm", "galahad-actix"]
 
+[features]
+default = []
+openapi = ["galahad-actix/openapi"]
+
 [dependencies]
 galahad-actix = { path = "galahad-actix" }
 galahad-core = { path = "galahad-core" }
