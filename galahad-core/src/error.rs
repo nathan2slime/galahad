@@ -8,6 +8,7 @@ pub enum AuthError {
     SessionNotFound,
     SessionExpired,
     SessionRevoked,
+    UserAlreadyExists,
     PersistenceFailure,
     PasswordHashingFailure,
 }
@@ -21,6 +22,7 @@ impl AuthError {
             Self::SessionNotFound => "auth.session_not_found",
             Self::SessionExpired => "auth.session_expired",
             Self::SessionRevoked => "auth.session_revoked",
+            Self::UserAlreadyExists => "auth.user_already_exists",
             Self::PersistenceFailure => "auth.persistence_failure",
             Self::PasswordHashingFailure => "auth.password_hashing_failure",
         }
@@ -35,6 +37,7 @@ impl fmt::Display for AuthError {
             Self::SessionNotFound => "session not found",
             Self::SessionExpired => "session has expired",
             Self::SessionRevoked => "session has been revoked",
+            Self::UserAlreadyExists => "user already exists",
             Self::PersistenceFailure => "persistence operation failed",
             Self::PasswordHashingFailure => "password hashing failed",
         };
@@ -58,6 +61,10 @@ mod tests {
             "invalid credentials"
         );
         assert_eq!(AuthError::SessionExpired.to_string(), "session has expired");
+        assert_eq!(
+            AuthError::UserAlreadyExists.to_string(),
+            "user already exists"
+        );
         assert_eq!(
             AuthError::PersistenceFailure.to_string(),
             "persistence operation failed"
@@ -85,6 +92,10 @@ mod tests {
         assert_eq!(AuthError::SessionNotFound.code(), "auth.session_not_found");
         assert_eq!(AuthError::SessionExpired.code(), "auth.session_expired");
         assert_eq!(AuthError::SessionRevoked.code(), "auth.session_revoked");
+        assert_eq!(
+            AuthError::UserAlreadyExists.code(),
+            "auth.user_already_exists"
+        );
         assert_eq!(
             AuthError::PersistenceFailure.code(),
             "auth.persistence_failure"
