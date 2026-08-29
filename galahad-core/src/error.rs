@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthError {
     InvalidEmail,
+    InvalidPassword,
     InvalidCredentials,
     UserNotFound,
     SessionNotFound,
@@ -19,6 +20,7 @@ impl AuthError {
     pub const fn code(&self) -> &'static str {
         match self {
             Self::InvalidEmail => "auth.invalid_email",
+            Self::InvalidPassword => "auth.invalid_password",
             Self::InvalidCredentials => "auth.invalid_credentials",
             Self::UserNotFound => "auth.user_not_found",
             Self::SessionNotFound => "auth.session_not_found",
@@ -35,6 +37,7 @@ impl fmt::Display for AuthError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
             Self::InvalidEmail => "invalid email",
+            Self::InvalidPassword => "invalid password",
             Self::InvalidCredentials => "invalid credentials",
             Self::UserNotFound => "user not found",
             Self::SessionNotFound => "session not found",
@@ -60,6 +63,7 @@ mod tests {
     #[test]
     fn displays_authentication_error_in_english() {
         assert_eq!(AuthError::InvalidEmail.to_string(), "invalid email");
+        assert_eq!(AuthError::InvalidPassword.to_string(), "invalid password");
         assert_eq!(
             AuthError::InvalidCredentials.to_string(),
             "invalid credentials"
@@ -89,6 +93,7 @@ mod tests {
     #[test]
     fn exposes_stable_localization_codes() {
         assert_eq!(AuthError::InvalidEmail.code(), "auth.invalid_email");
+        assert_eq!(AuthError::InvalidPassword.code(), "auth.invalid_password");
         assert_eq!(
             AuthError::InvalidCredentials.code(),
             "auth.invalid_credentials"
