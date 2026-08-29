@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Galahad</h1>
   <p>
-    <strong>Galahad is a framework-agnostic authentication foundation for Rust applications</strong>
+    <strong>Galahad is an authentication library for Rust applications</strong>
   </p>
   <p>
 
@@ -19,6 +19,7 @@
 
 ## Features
 
+- Authentication-only scope: users, credentials, sessions, and framework integrations
 - Framework-independent core authentication domain
 - Strong domain types for users, password credentials, sessions, and session tokens
 - Object-safe repository traits for persistence adapters
@@ -29,14 +30,16 @@
 - Stable internal and public-safe authentication error codes suitable for application-level i18n
 - English fallback error messages for developer-facing output
 - Facade crate with separate crates for core, Actix, and SeaORM integrations
+- Actix Web routes, extractors, and HttpOnly session cookie support
 - SeaORM persistence adapter with PostgreSQL support
 - CI checks for formatting, linting, and tests
 
 ## Current Scope
 
-Galahad is currently in early MVP development. The project includes core domain
-types, concrete password/session services, and a SeaORM persistence adapter.
-Actix Web integration is still planned.
+Galahad is currently in early MVP development. The project is intentionally
+focused only on authentication. It provides core domain types, concrete
+password/session services, a SeaORM persistence adapter, and Actix Web
+integration.
 
 Implemented so far:
 
@@ -50,13 +53,14 @@ Implemented so far:
 - Secure session token generation
 - Session token hashing
 - Session expiration policy, revocation, and lookup
+- Actix Web sign-up, sign-in, sign-out, and current-session routes
+- Actix Web authenticated and optional user extractors
+- HttpOnly SameSite=Lax session cookie support
 - SeaORM entities, repositories, migrations, PostgreSQL support, transactions, and integration tests
 - `AuthError` with stable internal and public-safe localization codes
 
 Planned for the MVP:
 
-- Actix Web routes and extractors
-- HttpOnly cookie support
 - Developer-experience facade builder
 
 ## Documentation
@@ -69,7 +73,7 @@ Planned for the MVP:
 
 - `galahad`: Public facade crate that re-exports the workspace crates.
 - `galahad-core`: Core authentication domain, errors, repositories, services, and token utilities.
-- `galahad-actix`: Planned Actix Web integration crate.
+- `galahad-actix`: Actix Web routes, extractors, and cookie integration.
 - `galahad-seaorm`: SeaORM persistence integration crate.
 
 ## Example
@@ -125,7 +129,9 @@ cargo test --workspace
 ## Roadmap
 
 The first release targets email/password authentication with sessions,
-PostgreSQL persistence through SeaORM, and Actix Web integration.
+PostgreSQL persistence through SeaORM, and Actix Web integration. Galahad does
+not aim to become a general user-management, authorization, or organization
+platform.
 
 Not included in the initial MVP:
 
