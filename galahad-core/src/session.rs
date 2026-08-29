@@ -1,7 +1,9 @@
 use std::fmt;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
-use crate::UserId;
+use crate::{AuthError, ServiceResult, UserId};
+
+const DEFAULT_SESSION_TTL: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 /// The identifier of a session.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -85,11 +87,40 @@ impl Session {
     }
 }
 
+/// Calculates session expiration times from a configured time-to-live.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SessionExpirationPolicy {
+    ttl: Duration,
+}
+
+impl Default for SessionExpirationPolicy {
+    fn default() -> Self {
+        Self::new(DEFAULT_SESSION_TTL)
+    }
+}
+
+impl SessionExpirationPolicy {
+    /// Creates a session expiration policy with the provided time-to-live.
+    pub const fn new(ttl: Duration) -> Self {
+        Self { ttl }
+    }
+
+    /// Returns the configured session time-to-live.
+    pub const fn ttl(&self) -> Duration {
+        self.ttl
+    }
+
+    /// Calculates when a session started at `now` should expire.
+    pub fn expires_at(&self, now: SystemTime) -> ServiceResult<SystemTime> {
+        now.checked_add(self.ttl).ok_or(AuthError::SessionExpired)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, SystemTime};
 
-    use super::{Session, SessionId};
+    use super::{Session, SessionExpirationPolicy, SessionId};
     use crate::UserId;
 
     fn session(expires_at: SystemTime) -> Session {
@@ -137,5 +168,33 @@ mod tests {
 
         assert!(session.is_revoked());
         assert!(!session.is_active_at(now));
+    }
+
+    #[test]
+    fn default_expiration_policy_uses_one_week_ttl() {
+        let policy = SessionExpirationPolicy::default();
+
+        assert_eq!(policy.ttl(), Duration::from_secs(60 * 60 * 24 * 7));
+    }
+
+    #[test]
+    fn expiration_policy_calculates_expiry_from_now() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+        let policy = SessionExpirationPolicy::new(Duration::from_secs(30));
+
+        assert_eq!(
+            policy.expires_at(now),
+            Ok(SystemTime::UNIX_EPOCH + Duration::from_secs(130))
+        );
+    }
+
+    #[test]
+    fn expiration_policy_rejects_time_overflow() {
+        let policy = SessionExpirationPolicy::new(Duration::MAX);
+
+        assert_eq!(
+            policy.expires_at(SystemTime::UNIX_EPOCH + Duration::from_secs(1)),
+            Err(crate::AuthError::SessionExpired)
+        );
     }
 }
