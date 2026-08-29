@@ -3,6 +3,7 @@
 mod credential;
 mod email;
 mod error;
+mod logout;
 mod lookup;
 mod password;
 mod repository;
@@ -15,6 +16,7 @@ mod user;
 
 pub use credential::PasswordCredential;
 pub use error::AuthError;
+pub use logout::SessionLogoutService;
 pub use lookup::SessionLookupService;
 pub use repository::{
     BoxRepositoryFuture, CredentialRepository, RepositoryResult, SessionRepository, UserRepository,
@@ -24,7 +26,10 @@ pub use service::{
     ServiceResult, SessionService, SignInInput, SignUpInput,
 };
 pub use session::{Session, SessionExpirationPolicy, SessionId};
-pub use signin::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
+pub use signin::{
+    EmailPasswordSignInDependencies, EmailPasswordSignInService, SignInSessionInput,
+    SignInSessionInputProvider, SignedInSession,
+};
 pub use signup::{EmailPasswordSignUpService, UserIdGenerator};
 pub use token::{
     OsSessionTokenGenerator, SessionToken, SessionTokenGenerator, SessionTokenHash,
