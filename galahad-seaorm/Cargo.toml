@@ -8,6 +8,15 @@ license = "MIT"
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = []
+postgres = [
+    "sea-orm/sqlx-postgres",
+    "sea-orm/runtime-tokio-rustls",
+    "sea-orm-migration/sqlx-postgres",
+    "sea-orm-migration/runtime-tokio-rustls",
+]
+
 [dependencies]
 galahad-core = { path = "../galahad-core" }
 sea-orm = { version = "2.0.2", default-features = false, features = ["macros", "with-chrono"] }
