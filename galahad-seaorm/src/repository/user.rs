@@ -4,16 +4,28 @@ use galahad_core::{
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use crate::entity::user;
+use crate::repository::SeaOrmConnection;
 
 /// A SeaORM-backed repository for users.
-pub struct SeaOrmUserRepository {
-    db: DatabaseConnection,
+pub struct SeaOrmUserRepository<'db> {
+    db: SeaOrmConnection<'db>,
 }
 
-impl SeaOrmUserRepository {
+impl SeaOrmUserRepository<'_> {
     /// Creates a repository backed by the provided database connection.
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self {
+            db: SeaOrmConnection::Database(db),
+        }
+    }
+}
+
+impl<'db> SeaOrmUserRepository<'db> {
+    /// Creates a repository backed by an existing database transaction.
+    pub fn from_transaction(transaction: &'db sea_orm::DatabaseTransaction) -> Self {
+        Self {
+            db: SeaOrmConnection::Transaction(transaction),
+        }
     }
 }
 
@@ -23,15 +35,19 @@ impl From<user::Model> for User {
     }
 }
 
-impl UserRepository for SeaOrmUserRepository {
+impl UserRepository for SeaOrmUserRepository<'_> {
     fn find_by_id<'a>(
         &'a self,
         id: &'a UserId,
     ) -> BoxRepositoryFuture<'a, RepositoryResult<Option<User>>> {
         Box::pin(async move {
-            user::Entity::find_by_id(id.as_str().to_owned())
-                .one(&self.db)
-                .await
+            let query = user::Entity::find_by_id(id.as_str().to_owned());
+            let model = match &self.db {
+                SeaOrmConnection::Database(db) => query.one(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.one(*transaction).await,
+            };
+
+            model
                 .map(|model| model.map(User::from))
                 .map_err(|_| AuthError::PersistenceFailure)
         })
@@ -42,10 +58,13 @@ impl UserRepository for SeaOrmUserRepository {
         email: &'a str,
     ) -> BoxRepositoryFuture<'a, RepositoryResult<Option<User>>> {
         Box::pin(async move {
-            user::Entity::find()
-                .filter(user::Column::Email.eq(email))
-                .one(&self.db)
-                .await
+            let query = user::Entity::find().filter(user::Column::Email.eq(email));
+            let model = match &self.db {
+                SeaOrmConnection::Database(db) => query.one(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.one(*transaction).await,
+            };
+
+            model
                 .map(|model| model.map(User::from))
                 .map_err(|_| AuthError::PersistenceFailure)
         })
@@ -61,9 +80,12 @@ impl UserRepository for SeaOrmUserRepository {
                 updated_at: Set(now),
             };
 
-            model
-                .insert(&self.db)
-                .await
+            let result = match &self.db {
+                SeaOrmConnection::Database(db) => model.insert(db).await,
+                SeaOrmConnection::Transaction(transaction) => model.insert(*transaction).await,
+            };
+
+            result
                 .map(|_| ())
                 .map_err(|_| AuthError::PersistenceFailure)
         })
