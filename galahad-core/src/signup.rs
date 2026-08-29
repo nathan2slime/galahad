@@ -50,6 +50,8 @@ impl EmailPasswordSignUpService {
         input: &'a SignUpInput,
     ) -> BoxServiceFuture<'a, ServiceResult<User>> {
         Box::pin(async move {
+            crate::email::validate_email(&input.email)?;
+
             if self
                 .user_repository
                 .find_by_email(&input.email)
@@ -266,5 +268,18 @@ mod tests {
         );
         assert_eq!(repositories.users.lock().unwrap().len(), 1);
         assert_eq!(repositories.credentials.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn invalid_email_is_rejected_without_saving_data() {
+        let repositories = Arc::new(InMemoryRepositories::default());
+        let service = service(&repositories);
+        let input = SignUpInput::new("not-an-email", "correct horse");
+
+        let result = block_on(service.sign_up(&input));
+
+        assert_eq!(result, Err(crate::AuthError::InvalidEmail));
+        assert!(repositories.users.lock().unwrap().is_empty());
+        assert!(repositories.credentials.lock().unwrap().is_empty());
     }
 }

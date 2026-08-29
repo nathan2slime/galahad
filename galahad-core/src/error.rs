@@ -3,6 +3,7 @@ use std::fmt;
 /// Errors that can occur while handling authentication domain operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthError {
+    InvalidEmail,
     InvalidCredentials,
     UserNotFound,
     SessionNotFound,
@@ -17,6 +18,7 @@ impl AuthError {
     /// Returns a stable machine-readable code suitable for localization keys.
     pub const fn code(&self) -> &'static str {
         match self {
+            Self::InvalidEmail => "auth.invalid_email",
             Self::InvalidCredentials => "auth.invalid_credentials",
             Self::UserNotFound => "auth.user_not_found",
             Self::SessionNotFound => "auth.session_not_found",
@@ -32,6 +34,7 @@ impl AuthError {
 impl fmt::Display for AuthError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
+            Self::InvalidEmail => "invalid email",
             Self::InvalidCredentials => "invalid credentials",
             Self::UserNotFound => "user not found",
             Self::SessionNotFound => "session not found",
@@ -56,6 +59,7 @@ mod tests {
 
     #[test]
     fn displays_authentication_error_in_english() {
+        assert_eq!(AuthError::InvalidEmail.to_string(), "invalid email");
         assert_eq!(
             AuthError::InvalidCredentials.to_string(),
             "invalid credentials"
@@ -84,6 +88,7 @@ mod tests {
 
     #[test]
     fn exposes_stable_localization_codes() {
+        assert_eq!(AuthError::InvalidEmail.code(), "auth.invalid_email");
         assert_eq!(
             AuthError::InvalidCredentials.code(),
             "auth.invalid_credentials"
