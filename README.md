@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Galahad</h1>
   <p>
-    <strong>Galahad is a framework-agnostic authentication foundation for Rust applications</strong>
+    <strong>Authentication for Rust applications using Actix Web and PostgreSQL</strong>
   </p>
   <p>
 
@@ -10,132 +10,192 @@
 [![CI](https://github.com/nathan2slime/galahad/actions/workflows/ci.yml/badge.svg)](https://github.com/nathan2slime/galahad/actions/workflows/ci.yml)
 ![Rust](https://img.shields.io/badge/rust-stable-ab6000.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Status](https://img.shields.io/badge/status-MVP%20in%20progress-yellow.svg)
 
 <!-- prettier-ignore-end -->
 
   </p>
 </div>
 
+Galahad is a focused authentication library for Rust applications. It provides
+email/password authentication, secure password hashing, session management,
+Actix Web routes and extractors, and SeaORM persistence for PostgreSQL.
+
+Galahad handles authentication concerns only. Authorization, roles, permissions,
+organizations, billing, profiles, and product-specific user workflows belong in
+your application.
+
 ## Features
 
-- Framework-independent core authentication domain
-- Strong domain types for users, password credentials, sessions, and session tokens
-- Object-safe repository traits for persistence adapters
-- Object-safe service contracts for password, session, and token workflows
-- Argon2id password hashing and SHA-256 session token hashing
-- Secure session token generation using the operating system CSPRNG
-- Session expiration, revocation, and lookup primitives
-- Stable internal and public-safe authentication error codes suitable for application-level i18n
-- English fallback error messages for developer-facing output
-- Facade crate with separate crates for core, Actix, and SeaORM integrations
-- SeaORM persistence adapter with PostgreSQL support
-- CI checks for formatting, linting, and tests
-
-## Current Scope
-
-Galahad is currently in early MVP development. The project includes core domain
-types, concrete password/session services, and a SeaORM persistence adapter.
-Actix Web integration is still planned.
-
-Implemented so far:
-
-- `galahad-core` domain models
-- `UserRepository`, `CredentialRepository`, and `SessionRepository` contracts
-- `PasswordService` and `SessionService` contracts
+- Email/password sign up and sign in
 - Argon2id password hashing
-- Email/password sign up and sign in services
-- Email and minimum password validation
-- User-enumeration-safe public error mapping
-- Secure session token generation
-- Session token hashing
-- Session expiration policy, revocation, and lookup
-- SeaORM entities, repositories, migrations, PostgreSQL support, transactions, and integration tests
-- `AuthError` with stable internal and public-safe localization codes
+- Secure random session tokens
+- Hashed session-token storage
+- Session expiration, lookup, logout, and revocation
+- HttpOnly `SameSite=Lax` session cookies
+- Actix Web routes and authenticated-user extractors
+- SeaORM repositories and migrations for PostgreSQL
+- Stable public error codes for API responses and localization
 
-Planned for the MVP:
-
-- Actix Web routes and extractors
-- HttpOnly cookie support
-- Developer-experience facade builder
-
-## Documentation
-
-- [Repository](https://github.com/nathan2slime/galahad)
-- [CI workflow](https://github.com/nathan2slime/galahad/actions/workflows/ci.yml)
-- API documentation will be published after the first crate release.
-
-## Crate Layout
-
-- `galahad`: Public facade crate that re-exports the workspace crates.
-- `galahad-core`: Core authentication domain, errors, repositories, services, and token utilities.
-- `galahad-actix`: Planned Actix Web integration crate.
-- `galahad-seaorm`: SeaORM persistence integration crate.
-
-## Example
-
-Dependencies:
+## Installation
 
 ```toml
 [dependencies]
+actix-web = "4"
 galahad = { git = "https://github.com/nathan2slime/galahad" }
+sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 ```
 
-Code:
+## Quick Start
+
+Create the database connection, run Galahad migrations, build the default
+Actix + PostgreSQL integration, and register the routes.
 
 ```rust
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
-use galahad::core::{
-    OsSessionTokenGenerator, Session, SessionExpirationPolicy, SessionId,
-    SessionTokenGenerator, SessionTokenHasher, Sha256SessionTokenHasher, User, UserId,
-};
+use actix_web::{App, HttpServer};
+use galahad::seaorm::Migrator;
+use galahad::GalahadActixPostgres;
+use sea_orm::Database;
+use sea_orm_migration::MigratorTrait;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let user = User::new(UserId::from("user-1"), "user@example.com");
-    let now = SystemTime::UNIX_EPOCH;
-    let expires_at = SessionExpirationPolicy::new(Duration::from_secs(3600))
-        .expires_at(now)?;
-    let token = OsSessionTokenGenerator::new().generate();
-    let token_hash = Sha256SessionTokenHasher::new().hash_token(&token);
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    let db = Database::connect(database_url)
+        .await
+        .expect("database connection failed");
 
-    let session = Session::new(
-        SessionId::from("session-1"),
-        user.id.clone(),
-        token_hash.as_str(),
-        expires_at,
-    );
+    Migrator::up(&db, None)
+        .await
+        .expect("database migration failed");
 
-    assert!(session.is_active_at(now));
+    let auth = GalahadActixPostgres::new(db)
+        .with_session_cookie_name("app_session")
+        .with_session_ttl(Duration::from_secs(60 * 60 * 24 * 7))
+        .build();
 
-    Ok(())
+    HttpServer::new(move || App::new().configure(|config| auth.routes(config)))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
 }
 ```
 
-## Development
+## HTTP API
 
-Format, lint, and test the complete workspace with:
+### Sign Up
+
+```http
+POST /auth/sign-up
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "correct horse battery staple"
+}
+```
+
+Response:
+
+```json
+{
+  "id": "generated-user-id",
+  "email": "user@example.com"
+}
+```
+
+### Sign In
+
+```http
+POST /auth/sign-in
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "correct horse battery staple"
+}
+```
+
+Response sets the session cookie and returns the authenticated session:
+
+```http
+Set-Cookie: galahad_session=<token>; HttpOnly; SameSite=Lax; Path=/
+```
+
+```json
+{
+  "user": {
+    "id": "generated-user-id",
+    "email": "user@example.com"
+  },
+  "session": {
+    "id": "session-id",
+    "expires_at_unix_seconds": 1728000000
+  }
+}
+```
+
+### Current Session
+
+```http
+GET /auth/session
+Cookie: galahad_session=<token>
+```
+
+Returns the same authenticated-session shape as sign in.
+
+### Sign Out
+
+```http
+POST /auth/sign-out
+Cookie: galahad_session=<token>
+```
+
+Response:
+
+```http
+204 No Content
+Set-Cookie: galahad_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0
+```
+
+## Route Protection
+
+Use `AuthenticatedUser` for routes that require a valid session, and
+`OptionalUser` for routes that can behave differently when a user is signed in.
+
+```rust
+use actix_web::HttpResponse;
+use galahad::actix::{AuthenticatedUser, OptionalUser};
+
+async fn account(user: AuthenticatedUser) -> HttpResponse {
+    HttpResponse::Ok().body(user.0.email)
+}
+
+async fn home(user: OptionalUser) -> HttpResponse {
+    match user.0 {
+        Some(user) => HttpResponse::Ok().body(format!("Signed in as {}", user.email)),
+        None => HttpResponse::Ok().body("Signed out"),
+    }
+}
+```
+
+## Crates
+
+- `galahad`: Facade crate that re-exports all Galahad integrations.
+- `galahad-actix`: Actix Web routes, extractors, and session-cookie support.
+- `galahad-seaorm`: SeaORM persistence repositories and migrations.
+- `galahad-core`: Authentication domain types, traits, services, and errors.
+
+## Development
 
 ```text
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace
 ```
-
-## Roadmap
-
-The first release targets email/password authentication with sessions,
-PostgreSQL persistence through SeaORM, and Actix Web integration.
-
-Not included in the initial MVP:
-
-- OAuth
-- RBAC
-- Organizations
-- MFA
-- Passkeys
-- Magic links
-- API keys
 
 ## License
 
