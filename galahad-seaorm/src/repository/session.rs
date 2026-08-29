@@ -4,16 +4,28 @@ use galahad_core::{
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use crate::entity::session;
+use crate::repository::SeaOrmConnection;
 
 /// A SeaORM-backed repository for sessions.
-pub struct SeaOrmSessionRepository {
-    db: DatabaseConnection,
+pub struct SeaOrmSessionRepository<'db> {
+    db: SeaOrmConnection<'db>,
 }
 
-impl SeaOrmSessionRepository {
+impl SeaOrmSessionRepository<'_> {
     /// Creates a repository backed by the provided database connection.
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self {
+            db: SeaOrmConnection::Database(db),
+        }
+    }
+}
+
+impl<'db> SeaOrmSessionRepository<'db> {
+    /// Creates a repository backed by an existing database transaction.
+    pub fn from_transaction(transaction: &'db sea_orm::DatabaseTransaction) -> Self {
+        Self {
+            db: SeaOrmConnection::Transaction(transaction),
+        }
     }
 }
 
@@ -29,15 +41,19 @@ impl From<session::Model> for Session {
     }
 }
 
-impl SessionRepository for SeaOrmSessionRepository {
+impl SessionRepository for SeaOrmSessionRepository<'_> {
     fn find_by_id<'a>(
         &'a self,
         id: &'a SessionId,
     ) -> BoxRepositoryFuture<'a, RepositoryResult<Option<Session>>> {
         Box::pin(async move {
-            session::Entity::find_by_id(id.as_str().to_owned())
-                .one(&self.db)
-                .await
+            let query = session::Entity::find_by_id(id.as_str().to_owned());
+            let model = match &self.db {
+                SeaOrmConnection::Database(db) => query.one(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.one(*transaction).await,
+            };
+
+            model
                 .map(|model| model.map(Session::from))
                 .map_err(|_| AuthError::PersistenceFailure)
         })
@@ -48,10 +64,13 @@ impl SessionRepository for SeaOrmSessionRepository {
         token_hash: &'a str,
     ) -> BoxRepositoryFuture<'a, RepositoryResult<Option<Session>>> {
         Box::pin(async move {
-            session::Entity::find()
-                .filter(session::Column::TokenHash.eq(token_hash))
-                .one(&self.db)
-                .await
+            let query = session::Entity::find().filter(session::Column::TokenHash.eq(token_hash));
+            let model = match &self.db {
+                SeaOrmConnection::Database(db) => query.one(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.one(*transaction).await,
+            };
+
+            model
                 .map(|model| model.map(Session::from))
                 .map_err(|_| AuthError::PersistenceFailure)
         })
@@ -70,9 +89,12 @@ impl SessionRepository for SeaOrmSessionRepository {
                 updated_at: Set(now),
             };
 
-            model
-                .insert(&self.db)
-                .await
+            let result = match &self.db {
+                SeaOrmConnection::Database(db) => model.insert(db).await,
+                SeaOrmConnection::Transaction(transaction) => model.insert(*transaction).await,
+            };
+
+            result
                 .map(|_| ())
                 .map_err(|_| AuthError::PersistenceFailure)
         })
@@ -80,9 +102,13 @@ impl SessionRepository for SeaOrmSessionRepository {
 
     fn delete<'a>(&'a self, id: &'a SessionId) -> BoxRepositoryFuture<'a, RepositoryResult<()>> {
         Box::pin(async move {
-            session::Entity::delete_by_id(id.as_str().to_owned())
-                .exec(&self.db)
-                .await
+            let query = session::Entity::delete_by_id(id.as_str().to_owned());
+            let result = match &self.db {
+                SeaOrmConnection::Database(db) => query.exec(db).await,
+                SeaOrmConnection::Transaction(transaction) => query.exec(*transaction).await,
+            };
+
+            result
                 .map(|_| ())
                 .map_err(|_| AuthError::PersistenceFailure)
         })
