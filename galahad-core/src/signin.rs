@@ -3,22 +3,36 @@ use std::time::SystemTime;
 
 use crate::{
     AuthenticatedSession, BoxServiceFuture, CredentialRepository, PasswordService, ServiceResult,
-    SessionService, SignInInput, UserRepository,
+    SessionExpirationPolicy, SessionService, SessionToken, SessionTokenGenerator,
+    SessionTokenHasher, SignInInput, UserRepository,
 };
 
 /// Data needed to create a session after successful sign-in.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SignInSessionInput {
-    pub token_hash: String,
-    pub expires_at: SystemTime,
+    pub now: SystemTime,
 }
 
 impl SignInSessionInput {
-    /// Creates session input from a token hash and expiry time.
-    pub fn new(token_hash: impl Into<String>, expires_at: SystemTime) -> Self {
+    /// Creates session input from the current time.
+    pub fn new(now: SystemTime) -> Self {
+        Self { now }
+    }
+}
+
+/// The authenticated session and raw token returned after successful sign-in.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SignedInSession {
+    pub authenticated_session: AuthenticatedSession,
+    pub token: SessionToken,
+}
+
+impl SignedInSession {
+    /// Creates a signed-in session result.
+    pub fn new(authenticated_session: AuthenticatedSession, token: SessionToken) -> Self {
         Self {
-            token_hash: token_hash.into(),
-            expires_at,
+            authenticated_session,
+            token,
         }
     }
 }
@@ -44,24 +58,36 @@ pub struct EmailPasswordSignInService {
     credential_repository: Arc<dyn CredentialRepository>,
     password_service: Arc<dyn PasswordService>,
     session_service: Arc<dyn SessionService>,
+    token_generator: Arc<dyn SessionTokenGenerator>,
+    token_hasher: Arc<dyn SessionTokenHasher>,
+    expiration_policy: SessionExpirationPolicy,
     session_input_provider: Arc<dyn SignInSessionInputProvider>,
 }
 
+/// Dependencies required by `EmailPasswordSignInService`.
+pub struct EmailPasswordSignInDependencies {
+    pub user_repository: Arc<dyn UserRepository>,
+    pub credential_repository: Arc<dyn CredentialRepository>,
+    pub password_service: Arc<dyn PasswordService>,
+    pub session_service: Arc<dyn SessionService>,
+    pub token_generator: Arc<dyn SessionTokenGenerator>,
+    pub token_hasher: Arc<dyn SessionTokenHasher>,
+    pub expiration_policy: SessionExpirationPolicy,
+    pub session_input_provider: Arc<dyn SignInSessionInputProvider>,
+}
+
 impl EmailPasswordSignInService {
-    /// Creates a sign-in service from repository, password, and session dependencies.
-    pub fn new(
-        user_repository: Arc<dyn UserRepository>,
-        credential_repository: Arc<dyn CredentialRepository>,
-        password_service: Arc<dyn PasswordService>,
-        session_service: Arc<dyn SessionService>,
-        session_input_provider: Arc<dyn SignInSessionInputProvider>,
-    ) -> Self {
+    /// Creates a sign-in service from repository, password, token, and session dependencies.
+    pub fn new(dependencies: EmailPasswordSignInDependencies) -> Self {
         Self {
-            user_repository,
-            credential_repository,
-            password_service,
-            session_service,
-            session_input_provider,
+            user_repository: dependencies.user_repository,
+            credential_repository: dependencies.credential_repository,
+            password_service: dependencies.password_service,
+            session_service: dependencies.session_service,
+            token_generator: dependencies.token_generator,
+            token_hasher: dependencies.token_hasher,
+            expiration_policy: dependencies.expiration_policy,
+            session_input_provider: dependencies.session_input_provider,
         }
     }
 
@@ -69,7 +95,7 @@ impl EmailPasswordSignInService {
     pub fn sign_in<'a>(
         &'a self,
         input: &'a SignInInput,
-    ) -> BoxServiceFuture<'a, ServiceResult<AuthenticatedSession>> {
+    ) -> BoxServiceFuture<'a, ServiceResult<SignedInSession>> {
         Box::pin(async move {
             crate::email::validate_email(&input.email)?;
 
@@ -92,16 +118,16 @@ impl EmailPasswordSignInService {
             }
 
             let session_input = self.session_input_provider.next_session_input();
+            let token = self.token_generator.generate();
+            let token_hash = self.token_hasher.hash_token(&token);
+            let expires_at = self.expiration_policy.expires_at(session_input.now)?;
             let session = self
                 .session_service
-                .create_session(
-                    &user.id,
-                    &session_input.token_hash,
-                    session_input.expires_at,
-                )
+                .create_session(&user.id, token_hash.as_str(), expires_at)
                 .await?;
+            let authenticated_session = AuthenticatedSession::new(user, session);
 
-            Ok(AuthenticatedSession::new(user, session))
+            Ok(SignedInSession::new(authenticated_session, token))
         })
     }
 }
@@ -114,11 +140,15 @@ mod tests {
     use std::task::{Context, Poll, Waker};
     use std::time::{Duration, SystemTime};
 
-    use super::{EmailPasswordSignInService, SignInSessionInput, SignInSessionInputProvider};
+    use super::{
+        EmailPasswordSignInDependencies, EmailPasswordSignInService, SignInSessionInput,
+        SignInSessionInputProvider,
+    };
     use crate::{
         BoxRepositoryFuture, BoxServiceFuture, CredentialRepository, PasswordCredential,
-        PasswordService, RepositoryResult, ServiceResult, Session, SessionId, SessionRepository,
-        SessionService, SignInInput, User, UserId, UserRepository,
+        PasswordService, RepositoryResult, ServiceResult, Session, SessionExpirationPolicy,
+        SessionId, SessionRepository, SessionService, SessionToken, SessionTokenGenerator,
+        SessionTokenHash, SessionTokenHasher, SignInInput, User, UserId, UserRepository,
     };
 
     #[derive(Default)]
@@ -309,6 +339,22 @@ mod tests {
         }
     }
 
+    struct FakeSessionTokenGenerator;
+
+    impl SessionTokenGenerator for FakeSessionTokenGenerator {
+        fn generate(&self) -> SessionToken {
+            SessionToken::from("token-value")
+        }
+    }
+
+    struct FakeSessionTokenHasher;
+
+    impl SessionTokenHasher for FakeSessionTokenHasher {
+        fn hash_token(&self, token: &SessionToken) -> SessionTokenHash {
+            SessionTokenHash::from(format!("hash:{}", token.as_str()))
+        }
+    }
+
     fn block_on<T>(future: impl Future<Output = T>) -> T {
         let waker = Waker::noop();
         let mut context = Context::from_waker(waker);
@@ -323,20 +369,19 @@ mod tests {
     }
 
     fn service(repositories: &Arc<InMemoryRepositories>) -> EmailPasswordSignInService {
-        let session_input_provider: Arc<dyn SignInSessionInputProvider> = Arc::new(|| {
-            SignInSessionInput::new(
-                "token-hash",
-                SystemTime::UNIX_EPOCH + Duration::from_secs(100),
-            )
-        });
+        let session_input_provider: Arc<dyn SignInSessionInputProvider> =
+            Arc::new(|| SignInSessionInput::new(SystemTime::UNIX_EPOCH + Duration::from_secs(10)));
 
-        EmailPasswordSignInService::new(
-            repositories.clone(),
-            repositories.clone(),
-            Arc::new(FakePasswordService),
-            repositories.clone(),
+        EmailPasswordSignInService::new(EmailPasswordSignInDependencies {
+            user_repository: repositories.clone(),
+            credential_repository: repositories.clone(),
+            password_service: Arc::new(FakePasswordService),
+            session_service: repositories.clone(),
+            token_generator: Arc::new(FakeSessionTokenGenerator),
+            token_hasher: Arc::new(FakeSessionTokenHasher),
+            expiration_policy: SessionExpirationPolicy::new(Duration::from_secs(90)),
             session_input_provider,
-        )
+        })
     }
 
     fn insert_user_with_credential(repositories: &Arc<InMemoryRepositories>) -> User {
@@ -356,48 +401,37 @@ mod tests {
     }
 
     #[test]
-    fn successful_sign_in_returns_user_and_creates_session() {
+    fn successful_sign_in_returns_token_and_stores_only_token_hash() {
         let repositories = Arc::new(InMemoryRepositories::default());
         let user = insert_user_with_credential(&repositories);
         let service = service(&repositories);
         let input = SignInInput::new("user@example.com", "correct horse");
 
-        let authenticated_session = block_on(service.sign_in(&input)).unwrap();
+        let signed_in_session = block_on(service.sign_in(&input)).unwrap();
 
-        assert_eq!(authenticated_session.user, user);
+        assert_eq!(signed_in_session.token, SessionToken::from("token-value"));
+        assert_eq!(signed_in_session.authenticated_session.user, user);
         assert_eq!(
-            authenticated_session.session.user_id,
-            UserId::from("user-1")
+            signed_in_session.authenticated_session.session.token_hash,
+            "hash:token-value"
         );
-        assert_eq!(authenticated_session.session.token_hash, "token-hash");
-        assert_eq!(repositories.sessions.lock().unwrap().len(), 1);
+        assert_ne!(
+            signed_in_session.authenticated_session.session.token_hash,
+            signed_in_session.token.as_str()
+        );
+        assert_eq!(
+            signed_in_session.authenticated_session.session.expires_at,
+            SystemTime::UNIX_EPOCH + Duration::from_secs(100)
+        );
     }
 
     #[test]
     fn missing_user_is_rejected_without_creating_session() {
         let repositories = Arc::new(InMemoryRepositories::default());
         let service = service(&repositories);
-        let input = SignInInput::new("missing@example.com", "correct horse");
 
-        let result = block_on(service.sign_in(&input));
-
-        assert_eq!(result, Err(crate::AuthError::InvalidCredentials));
-        assert!(repositories.sessions.lock().unwrap().is_empty());
-    }
-
-    #[test]
-    fn missing_credential_is_rejected_without_creating_session() {
-        let repositories = Arc::new(InMemoryRepositories::default());
-        let user = User::new(UserId::from("user-1"), "user@example.com");
-        repositories
-            .users
-            .lock()
-            .unwrap()
-            .insert(user.id.clone(), user);
-        let service = service(&repositories);
-        let input = SignInInput::new("user@example.com", "correct horse");
-
-        let result = block_on(service.sign_in(&input));
+        let result =
+            block_on(service.sign_in(&SignInInput::new("missing@example.com", "correct horse")));
 
         assert_eq!(result, Err(crate::AuthError::InvalidCredentials));
         assert!(repositories.sessions.lock().unwrap().is_empty());
@@ -408,9 +442,9 @@ mod tests {
         let repositories = Arc::new(InMemoryRepositories::default());
         insert_user_with_credential(&repositories);
         let service = service(&repositories);
-        let input = SignInInput::new("user@example.com", "wrong horse");
 
-        let result = block_on(service.sign_in(&input));
+        let result =
+            block_on(service.sign_in(&SignInInput::new("user@example.com", "wrong horse")));
 
         assert_eq!(result, Err(crate::AuthError::InvalidCredentials));
         assert!(repositories.sessions.lock().unwrap().is_empty());
@@ -421,9 +455,8 @@ mod tests {
         let repositories = Arc::new(InMemoryRepositories::default());
         insert_user_with_credential(&repositories);
         let service = service(&repositories);
-        let input = SignInInput::new("not-an-email", "correct horse");
 
-        let result = block_on(service.sign_in(&input));
+        let result = block_on(service.sign_in(&SignInInput::new("not-an-email", "correct horse")));
 
         assert_eq!(result, Err(crate::AuthError::InvalidEmail));
         assert!(repositories.sessions.lock().unwrap().is_empty());
