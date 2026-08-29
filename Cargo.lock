@@ -840,6 +840,7 @@ dependencies = [
  "galahad-core",
  "sea-orm",
  "sea-orm-migration",
+ "tokio",
 ]
 
 [[package]]
