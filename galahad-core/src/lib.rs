@@ -13,8 +13,8 @@ pub use repository::{
     BoxRepositoryFuture, CredentialRepository, RepositoryResult, SessionRepository, UserRepository,
 };
 pub use service::{
-    AuthService, AuthenticatedSession, BoxServiceFuture, PasswordService, ServiceResult,
-    SessionService, SignInInput, SignUpInput,
+    Argon2idPasswordService, AuthService, AuthenticatedSession, BoxServiceFuture, PasswordService,
+    ServiceResult, SessionService, SignInInput, SignUpInput,
 };
 pub use session::{Session, SessionId};
 pub use user::{User, UserId};

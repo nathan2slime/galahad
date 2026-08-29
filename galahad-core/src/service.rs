@@ -2,6 +2,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::SystemTime;
 
+use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::{Algorithm, Argon2, Params, Version};
+
 use crate::{AuthError, Session, SessionId, User, UserId};
 
 /// A boxed, sendable future returned by a service operation.
@@ -96,6 +99,59 @@ pub trait PasswordService: Send + Sync {
     ) -> BoxServiceFuture<'a, ServiceResult<bool>>;
 }
 
+/// Argon2id implementation of password hashing and verification.
+pub struct Argon2idPasswordService {
+    argon2: Argon2<'static>,
+}
+
+impl Default for Argon2idPasswordService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Argon2idPasswordService {
+    /// Creates a password service using Argon2id with default crate parameters.
+    pub fn new() -> Self {
+        Self {
+            argon2: Argon2::new(Algorithm::Argon2id, Version::V0x13, Params::default()),
+        }
+    }
+}
+
+impl PasswordService for Argon2idPasswordService {
+    fn hash_password<'a>(
+        &'a self,
+        password: &'a str,
+    ) -> BoxServiceFuture<'a, ServiceResult<String>> {
+        Box::pin(async move {
+            let salt = SaltString::generate(&mut rand_core::OsRng);
+
+            self.argon2
+                .hash_password(password.as_bytes(), &salt)
+                .map(|hash| hash.to_string())
+                .map_err(|_| AuthError::PasswordHashingFailure)
+        })
+    }
+
+    fn verify_password<'a>(
+        &'a self,
+        password: &'a str,
+        password_hash: &'a str,
+    ) -> BoxServiceFuture<'a, ServiceResult<bool>> {
+        Box::pin(async move {
+            let Ok(parsed_hash) = PasswordHash::new(password_hash) else {
+                return Ok(false);
+            };
+
+            Ok(self
+                .argon2
+                .verify_password(password.as_bytes(), &parsed_hash)
+                .is_ok())
+        })
+    }
+}
+
 /// Session lifecycle operations.
 pub trait SessionService: Send + Sync {
     /// Creates a session for a user using an already-hashed token.
@@ -129,8 +185,8 @@ mod tests {
     use std::time::{Duration, SystemTime};
 
     use super::{
-        AuthService, AuthenticatedSession, BoxServiceFuture, PasswordService, ServiceResult,
-        SessionService, SignInInput, SignUpInput,
+        Argon2idPasswordService, AuthService, AuthenticatedSession, BoxServiceFuture,
+        PasswordService, ServiceResult, SessionService, SignInInput, SignUpInput,
     };
     use crate::{Session, SessionId, User, UserId};
 
@@ -322,6 +378,24 @@ mod tests {
         assert_eq!(password_hash, "test-hash:correct horse");
         assert!(block_on(service.verify_password("correct horse", &password_hash)).unwrap());
         assert!(!block_on(service.verify_password("wrong horse", &password_hash)).unwrap());
+    }
+
+    #[test]
+    fn argon2id_password_service_hashes_and_verifies_passwords() {
+        let service = Argon2idPasswordService::new();
+
+        let password_hash = block_on(service.hash_password("correct horse")).unwrap();
+
+        assert!(password_hash.starts_with("$argon2id$"));
+        assert!(block_on(service.verify_password("correct horse", &password_hash)).unwrap());
+        assert!(!block_on(service.verify_password("wrong horse", &password_hash)).unwrap());
+    }
+
+    #[test]
+    fn argon2id_password_service_rejects_malformed_hashes() {
+        let service = Argon2idPasswordService::new();
+
+        assert!(!block_on(service.verify_password("correct horse", "not-a-phc-hash")).unwrap());
     }
 
     #[test]
