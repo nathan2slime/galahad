@@ -3,6 +3,7 @@
 mod credential;
 mod email;
 mod error;
+mod password;
 mod repository;
 mod service;
 mod session;
