@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::time::SystemTime;
 
 use actix_web::dev::Payload;
+use actix_web::http::header;
 use actix_web::{web, FromRequest, HttpRequest};
 use galahad_core::{AuthError, SessionToken, User};
 
@@ -70,7 +71,23 @@ pub(crate) fn session_token_from_request(
     request: &HttpRequest,
     auth: &GalahadActix,
 ) -> Option<SessionToken> {
-    request
-        .cookie(&auth.session_cookie_name)
-        .map(|cookie| SessionToken::from(cookie.value()))
+    bearer_session_token_from_request(request, auth).or_else(|| {
+        request
+            .cookie(&auth.session_cookie_name)
+            .map(|cookie| SessionToken::from(cookie.value()))
+    })
+}
+
+fn bearer_session_token_from_request(
+    request: &HttpRequest,
+    auth: &GalahadActix,
+) -> Option<SessionToken> {
+    let token = request
+        .headers()
+        .get(header::AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")?;
+
+    auth.jwt.as_ref()?.verify(token)
 }

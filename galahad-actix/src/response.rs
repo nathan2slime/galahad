@@ -53,6 +53,8 @@ impl From<galahad_core::Session> for SessionResponse {
 pub(crate) struct AuthenticatedSessionResponse {
     user: UserResponse,
     session: SessionResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_token: Option<String>,
 }
 
 impl From<AuthenticatedSession> for AuthenticatedSessionResponse {
@@ -60,6 +62,14 @@ impl From<AuthenticatedSession> for AuthenticatedSessionResponse {
         Self {
             user: UserResponse::from(authenticated_session.user),
             session: SessionResponse::from(authenticated_session.session),
+            access_token: None,
         }
+    }
+}
+
+impl AuthenticatedSessionResponse {
+    pub(crate) fn with_access_token(mut self, access_token: String) -> Self {
+        self.access_token = Some(access_token);
+        self
     }
 }
