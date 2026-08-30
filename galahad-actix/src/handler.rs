@@ -13,7 +13,7 @@ use crate::{ActixAuthError, GalahadActix};
     utoipa::path(
         post,
         path = "/auth/sign-up",
-        tag = "auth",
+        tag = "Galahad",
         request_body = AuthRequest,
         responses(
             (status = 200, description = "User signed up successfully", body = UserResponse),
@@ -39,7 +39,7 @@ pub(crate) async fn sign_up(
     utoipa::path(
         post,
         path = "/auth/sign-in",
-        tag = "auth",
+        tag = "Galahad",
         request_body = AuthRequest,
         responses(
             (status = 200, description = "User signed in successfully", body = AuthenticatedSessionResponse),
@@ -71,7 +71,7 @@ pub(crate) async fn sign_in(
     utoipa::path(
         post,
         path = "/auth/sign-out",
-        tag = "auth",
+        tag = "Galahad",
         security(("GalahadSession" = [])),
         responses(
             (status = 204, description = "User signed out successfully"),
@@ -99,7 +99,7 @@ pub(crate) async fn sign_out(
     utoipa::path(
         get,
         path = "/auth/session",
-        tag = "auth",
+        tag = "Galahad",
         security(("GalahadSession" = [])),
         responses(
             (status = 200, description = "Current authenticated session", body = AuthenticatedSessionResponse),

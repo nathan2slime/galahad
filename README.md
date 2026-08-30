@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Galahad</h1>
   <p>
-    <strong>Authentication for Rust applications using Actix Web and PostgreSQL</strong>
+    <strong>Authentication for Rust applications using Actix Web and SeaORM</strong>
   </p>
   <p>
 
@@ -18,7 +18,7 @@
 
 Galahad is a focused authentication library for Rust applications. It provides
 email/password authentication, secure password hashing, session management,
-Actix Web routes and extractors, and SeaORM persistence for PostgreSQL.
+Actix Web routes and extractors, and SeaORM persistence.
 
 Galahad handles authentication concerns only. Authorization, roles, permissions,
 organizations, billing, profiles, and product-specific user workflows belong in
@@ -33,7 +33,7 @@ your application.
 - Session expiration, lookup, logout, and revocation
 - HttpOnly `SameSite=Lax` session cookies
 - Actix Web routes and authenticated-user extractors
-- SeaORM repositories and migrations for PostgreSQL
+- SeaORM repositories and migrations
 - Stable public error codes for API responses and localization
 
 ## Installation
@@ -42,12 +42,14 @@ your application.
 [dependencies]
 actix-web = "4"
 galahad = { git = "https://github.com/nathan2slime/galahad" }
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
 sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 ```
 
 Use the Git dependency until the next crate release includes these facade
-features.
+APIs. Enable database-driver features on `galahad-seaorm`; PostgreSQL is shown
+here as the current driver example.
 
 Enable OpenAPI documentation when you want to expose the generated spec or
 Swagger UI from your application:
@@ -55,6 +57,7 @@ Swagger UI from your application:
 ```toml
 [dependencies]
 galahad = { git = "https://github.com/nathan2slime/galahad", features = ["openapi"] }
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
 utoipa = "5"
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 ```
@@ -62,14 +65,14 @@ utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 ## Quick Start
 
 Create the database connection, run Galahad migrations, build the default
-Actix + PostgreSQL integration, and register the routes.
+Actix + SeaORM integration, and register the routes.
 
 ```rust
 use std::time::Duration;
 
 use actix_web::{App, HttpServer};
 use galahad::seaorm::Migrator;
-use galahad::{Galahad, GalahadPostgres};
+use galahad::{Galahad, GalahadSeaOrm};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 
@@ -89,7 +92,7 @@ async fn main() -> std::io::Result<()> {
         .cookie_name("my_session_cookie")
         .ttl(Duration::from_secs(60 * 60));
     let auth = Galahad::actix()
-        .database(GalahadPostgres::new(db))
+        .database(GalahadSeaOrm::new(db))
         .session(session)
         .build();
 
@@ -110,7 +113,7 @@ spec.
 ```rust
 use galahad::seaorm::Migrator;
 use actix_web::{App, HttpServer};
-use galahad::{Galahad, GalahadOpenApi, GalahadPostgres};
+use galahad::{Galahad, GalahadOpenApi, GalahadSeaOrm};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 use utoipa::OpenApi;
@@ -132,7 +135,7 @@ async fn main() -> std::io::Result<()> {
 
     let session = Galahad::session().cookie_name("app_session");
     let auth = Galahad::actix()
-        .database(GalahadPostgres::new(db))
+        .database(GalahadSeaOrm::new(db))
         .session(session)
         .build();
     let openapi = GalahadOpenApi::actix(ApiDoc::openapi())
@@ -268,7 +271,7 @@ async fn home(user: OptionalUser) -> HttpResponse {
 
 - `galahad`: Facade crate that re-exports all Galahad integrations.
 - `galahad-actix`: Actix Web routes, extractors, and session-cookie support.
-- `galahad-seaorm`: SeaORM persistence repositories and migrations.
+- `galahad-seaorm`: SeaORM persistence repositories and migrations. Enable its database features, such as `postgres`, in applications that need a specific SeaORM driver.
 - `galahad-core`: Authentication domain types, traits, services, and errors.
 
 ## Development

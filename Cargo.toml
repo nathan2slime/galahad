@@ -16,7 +16,7 @@ openapi = ["dep:utoipa", "galahad-actix/openapi"]
 [dependencies]
 galahad-actix = { path = "galahad-actix" }
 galahad-core = { path = "galahad-core" }
-galahad-seaorm = { path = "galahad-seaorm", features = ["postgres"] }
+galahad-seaorm = { path = "galahad-seaorm" }
 sea-orm = { version = "2.0.2", default-features = false }
 utoipa = { version = "5", optional = true }
 uuid = { version = "1", features = ["v4"] }

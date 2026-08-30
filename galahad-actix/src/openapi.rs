@@ -26,7 +26,7 @@ const SESSION_SECURITY_SCHEME: &str = "GalahadSession";
         ErrorResponse,
     )),
     modifiers(&SessionCookieSecurity),
-    tags((name = "auth", description = "Authentication endpoints"))
+    tags((name = "Galahad", description = "Galahad authentication endpoints"))
 )]
 pub struct GalahadActixOpenApi;
 
@@ -34,6 +34,14 @@ impl GalahadActixOpenApi {
     /// Returns the OpenAPI document using the default Galahad session cookie name.
     pub fn openapi() -> utoipa::openapi::OpenApi {
         <Self as utoipa::OpenApi>::openapi()
+    }
+
+    /// Returns the OpenAPI document using a custom session cookie name when provided.
+    pub fn openapi_for_session_cookie_name(name: Option<String>) -> utoipa::openapi::OpenApi {
+        match name {
+            Some(name) => Self::openapi_with_session_cookie_name(name),
+            None => Self::openapi(),
+        }
     }
 
     /// Returns the OpenAPI document using a custom session cookie name.
