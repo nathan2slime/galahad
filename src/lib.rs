@@ -18,7 +18,7 @@ pub use galahad_seaorm as seaorm;
 pub use actix_setup::{GalahadActixBuilder, GalahadActixSeaOrmBuilder};
 pub use database::GalahadSeaOrm;
 pub use entry::Galahad;
-pub use jwt::GalahadJwt;
+pub use jwt::{GalahadJwt, GalahadJwtAlgorithm};
 #[cfg(feature = "openapi")]
 pub use openapi::{GalahadActixOpenApiBuilder, GalahadOpenApi};
 pub use session::GalahadSession;

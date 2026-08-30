@@ -14,6 +14,6 @@ mod response;
 pub use config::GalahadActix;
 pub use error::ActixAuthError;
 pub use extractor::{AuthenticatedUser, OptionalUser};
-pub use jwt::JwtConfig;
+pub use jwt::{JwtAlgorithm, JwtConfig};
 #[cfg(feature = "openapi")]
 pub use openapi::GalahadActixOpenApi;
