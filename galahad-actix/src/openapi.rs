@@ -36,6 +36,14 @@ impl GalahadActixOpenApi {
         <Self as utoipa::OpenApi>::openapi()
     }
 
+    /// Returns the OpenAPI document using a custom session cookie name when provided.
+    pub fn openapi_for_session_cookie_name(name: Option<String>) -> utoipa::openapi::OpenApi {
+        match name {
+            Some(name) => Self::openapi_with_session_cookie_name(name),
+            None => Self::openapi(),
+        }
+    }
+
     /// Returns the OpenAPI document using a custom session cookie name.
     pub fn openapi_with_session_cookie_name(name: impl Into<String>) -> utoipa::openapi::OpenApi {
         let mut openapi = Self::openapi();
