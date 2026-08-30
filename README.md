@@ -48,8 +48,27 @@ sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-t
 ```
 
 Use the Git dependency until the next crate release includes these facade
-APIs. Enable database-driver features on `galahad-seaorm`; PostgreSQL is shown
-here as the current driver example.
+APIs. Enable database-driver features on `galahad-seaorm` for the SeaORM driver
+used by your application.
+
+Driver feature examples:
+
+```toml
+# PostgreSQL
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+
+# SQLite
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["sqlite"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+
+# MySQL
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["mysql"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-mysql", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-mysql", "runtime-tokio-rustls"] }
+```
 
 Enable OpenAPI documentation when you want to expose the generated spec or
 Swagger UI from your application:
@@ -72,7 +91,7 @@ use std::time::Duration;
 
 use actix_web::{App, HttpServer};
 use galahad::seaorm::Migrator;
-use galahad::{Galahad, GalahadSeaOrm};
+use galahad::{Galahad, GalahadJwtAlgorithm, GalahadSeaOrm};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 
@@ -91,9 +110,20 @@ async fn main() -> std::io::Result<()> {
     let session = Galahad::session()
         .cookie_name("my_session_cookie")
         .ttl(Duration::from_secs(60 * 60));
+    let sign_up = Galahad::sign_up()
+        .required_field("name")
+        .required_field("company_id");
+    let jwt = Galahad::jwt(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set"))
+        .algorithm(GalahadJwtAlgorithm::Hs512)
+        .issuer("my-api")
+        .audience("my-web-app")
+        .ttl(Duration::from_secs(60 * 15))
+        .leeway(30);
     let auth = Galahad::actix()
         .database(GalahadSeaOrm::new(db))
         .session(session)
+        .sign_up(sign_up)
+        .jwt(jwt)
         .build();
 
     HttpServer::new(move || App::new().configure(|config| auth.routes(config)))
@@ -179,7 +209,9 @@ Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "password": "correct horse battery staple"
+  "password": "correct horse battery staple",
+  "name": "Ada Lovelace",
+  "company_id": "company-1"
 }
 ```
 
@@ -219,7 +251,8 @@ Set-Cookie: galahad_session=<token>; HttpOnly; SameSite=Lax; Path=/
   "session": {
     "id": "session-id",
     "expires_at_unix_seconds": 1728000000
-  }
+  },
+  "access_token": "jwt-token"
 }
 ```
 
@@ -228,6 +261,13 @@ Set-Cookie: galahad_session=<token>; HttpOnly; SameSite=Lax; Path=/
 ```http
 GET /auth/session
 Cookie: galahad_session=<token>
+```
+
+Or use the JWT returned by sign in:
+
+```http
+GET /auth/session
+Authorization: Bearer <jwt-token>
 ```
 
 Returns the same authenticated-session shape as sign in.

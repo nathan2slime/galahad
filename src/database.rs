@@ -11,7 +11,9 @@ use galahad_core::{
 use galahad_seaorm::{SeaOrmCredentialRepository, SeaOrmSessionRepository, SeaOrmUserRepository};
 use sea_orm::DatabaseConnection;
 
+use crate::jwt::{GalahadJwt, GalahadJwtAlgorithm};
 use crate::session::GalahadSession;
+use crate::sign_up::GalahadSignUp;
 
 /// SeaORM-backed database configuration for Galahad integrations.
 pub struct GalahadSeaOrm {
@@ -28,6 +30,8 @@ impl GalahadSeaOrm {
 pub(crate) fn build_actix_seaorm(
     db: DatabaseConnection,
     session: GalahadSession,
+    sign_up: GalahadSignUp,
+    jwt: Option<GalahadJwt>,
 ) -> galahad_actix::GalahadActix {
     let users = Arc::new(SeaOrmUserRepository::new(db.clone()));
     let credentials = Arc::new(SeaOrmCredentialRepository::new(db.clone()));
@@ -67,10 +71,35 @@ pub(crate) fn build_actix_seaorm(
         lookup_service,
     );
 
+    let auth = auth.with_required_sign_up_fields(sign_up.required_fields);
+    let auth = match jwt {
+        Some(jwt) => auth.with_jwt(jwt_config(jwt)),
+        None => auth,
+    };
+
     match session.cookie_name {
         Some(name) => auth.with_session_cookie_name(name),
         None => auth,
     }
+}
+
+fn jwt_config(jwt: GalahadJwt) -> galahad_actix::JwtConfig {
+    let config = galahad_actix::JwtConfig::new(jwt.secret)
+        .with_ttl(jwt.ttl)
+        .with_algorithm(match jwt.algorithm {
+            GalahadJwtAlgorithm::Hs256 => galahad_actix::JwtAlgorithm::Hs256,
+            GalahadJwtAlgorithm::Hs384 => galahad_actix::JwtAlgorithm::Hs384,
+            GalahadJwtAlgorithm::Hs512 => galahad_actix::JwtAlgorithm::Hs512,
+        })
+        .with_leeway(jwt.leeway);
+    let config = match jwt.issuer {
+        Some(issuer) => config.with_issuer(issuer),
+        None => config,
+    };
+
+    jwt.audience
+        .into_iter()
+        .fold(config, |config, audience| config.with_audience(audience))
 }
 
 struct UuidUserIdGenerator;
