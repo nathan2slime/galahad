@@ -72,7 +72,7 @@ use std::time::Duration;
 
 use actix_web::{App, HttpServer};
 use galahad::seaorm::Migrator;
-use galahad::{Galahad, GalahadSeaOrm};
+use galahad::{Galahad, GalahadJwtAlgorithm, GalahadSeaOrm};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 
@@ -95,7 +95,11 @@ async fn main() -> std::io::Result<()> {
         .required_field("name")
         .required_field("company_id");
     let jwt = Galahad::jwt(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set"))
-        .ttl(Duration::from_secs(60 * 15));
+        .algorithm(GalahadJwtAlgorithm::Hs512)
+        .issuer("my-api")
+        .audience("my-web-app")
+        .ttl(Duration::from_secs(60 * 15))
+        .leeway(30);
     let auth = Galahad::actix()
         .database(GalahadSeaOrm::new(db))
         .session(session)
