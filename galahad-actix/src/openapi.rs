@@ -1,4 +1,4 @@
-use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::Modify;
 
 use crate::config::DEFAULT_SESSION_COOKIE_NAME;
@@ -8,6 +8,7 @@ use crate::request::AuthRequest;
 use crate::response::{AuthenticatedSessionResponse, ErrorResponse, SessionResponse, UserResponse};
 
 const SESSION_SECURITY_SCHEME: &str = "GalahadSession";
+const BEARER_SECURITY_SCHEME: &str = "GalahadBearer";
 
 /// OpenAPI document for Galahad's Actix authentication routes.
 #[derive(utoipa::OpenApi)]
@@ -68,6 +69,15 @@ fn add_session_cookie_security(
         components.add_security_scheme(
             SESSION_SECURITY_SCHEME,
             SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new(cookie_name))),
+        );
+        components.add_security_scheme(
+            BEARER_SECURITY_SCHEME,
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build(),
+            ),
         );
     }
 }

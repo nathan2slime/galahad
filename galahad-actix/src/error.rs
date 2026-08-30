@@ -23,7 +23,9 @@ impl std::fmt::Display for ActixAuthError {
 impl ResponseError for ActixAuthError {
     fn status_code(&self) -> StatusCode {
         match self.0 {
-            AuthError::InvalidEmail | AuthError::InvalidPassword => StatusCode::BAD_REQUEST,
+            AuthError::InvalidEmail
+            | AuthError::InvalidPassword
+            | AuthError::InvalidSignUpField => StatusCode::BAD_REQUEST,
             AuthError::InvalidCredentials
             | AuthError::SessionExpired
             | AuthError::SessionRevoked
