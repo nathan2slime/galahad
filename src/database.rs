@@ -13,26 +13,26 @@ use sea_orm::DatabaseConnection;
 
 use crate::session::GalahadSession;
 
-/// PostgreSQL backend configuration for Galahad integrations.
-pub struct GalahadPostgres {
+/// SeaORM-backed database configuration for Galahad integrations.
+pub struct GalahadSeaOrm {
     pub(crate) db: DatabaseConnection,
 }
 
-impl GalahadPostgres {
-    /// Creates a PostgreSQL backend from a SeaORM database connection.
+impl GalahadSeaOrm {
+    /// Creates a SeaORM backend from a SeaORM database connection.
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 }
 
-pub(crate) fn build_actix_postgres(
+pub(crate) fn build_actix_seaorm(
     db: DatabaseConnection,
     session: GalahadSession,
 ) -> galahad_actix::GalahadActix {
     let users = Arc::new(SeaOrmUserRepository::new(db.clone()));
     let credentials = Arc::new(SeaOrmCredentialRepository::new(db.clone()));
     let sessions = Arc::new(SeaOrmSessionRepository::new(db.clone()));
-    let session_service = Arc::new(PostgresSessionService::new(db));
+    let session_service = Arc::new(SeaOrmSessionService::new(db));
     let password_service = Arc::new(Argon2idPasswordService::new());
     let token_hasher = Arc::new(Sha256SessionTokenHasher::new());
 
@@ -81,17 +81,17 @@ impl UserIdGenerator for UuidUserIdGenerator {
     }
 }
 
-struct PostgresSessionService {
+struct SeaOrmSessionService {
     db: DatabaseConnection,
 }
 
-impl PostgresSessionService {
+impl SeaOrmSessionService {
     fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 }
 
-impl SessionService for PostgresSessionService {
+impl SessionService for SeaOrmSessionService {
     fn create_session<'a>(
         &'a self,
         user_id: &'a UserId,

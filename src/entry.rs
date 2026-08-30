@@ -1,5 +1,5 @@
+use crate::actix_setup::GalahadActixBuilder;
 use crate::session::GalahadSession;
-use crate::web::GalahadActixBuilder;
 
 /// Entry point for Galahad's high-level setup API.
 pub struct Galahad;
