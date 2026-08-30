@@ -1155,6 +1155,7 @@ dependencies = [
  "galahad-core",
  "galahad-seaorm",
  "sea-orm",
+ "utoipa",
  "uuid",
 ]
 

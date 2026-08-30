@@ -46,6 +46,9 @@ sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustl
 sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 ```
 
+Use the Git dependency until the next crate release includes these facade
+features.
+
 Enable OpenAPI documentation when you want to expose the generated spec or
 Swagger UI from your application:
 
@@ -66,7 +69,7 @@ use std::time::Duration;
 
 use actix_web::{App, HttpServer};
 use galahad::seaorm::Migrator;
-use galahad::GalahadActixPostgres;
+use galahad::{Galahad, GalahadPostgres};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 
@@ -82,9 +85,12 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("database migration failed");
 
-    let auth = GalahadActixPostgres::new(db)
-        .with_session_cookie_name("app_session")
-        .with_session_ttl(Duration::from_secs(60 * 60 * 24 * 7))
+    let session = Galahad::session()
+        .cookie_name("my_session_cookie")
+        .ttl(Duration::from_secs(60 * 60));
+    let auth = Galahad::actix()
+        .database(GalahadPostgres::new(db))
+        .session(session)
         .build();
 
     HttpServer::new(move || App::new().configure(|config| auth.routes(config)))
@@ -102,12 +108,17 @@ JSON, attach it to Swagger UI, or merge it into a larger application OpenAPI
 spec.
 
 ```rust
-use actix_web::{App, HttpServer};
-use galahad::{GalahadActixOpenApi, GalahadActixPostgres};
 use galahad::seaorm::Migrator;
+use actix_web::{App, HttpServer};
+use galahad::{Galahad, GalahadOpenApi, GalahadPostgres};
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(OpenApi)]
+#[openapi(info(title = "My API", version = "1.0.0"))]
+struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -119,10 +130,14 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("database migration failed");
 
-    let auth = GalahadActixPostgres::new(db)
-        .with_session_cookie_name("app_session")
+    let session = Galahad::session().cookie_name("app_session");
+    let auth = Galahad::actix()
+        .database(GalahadPostgres::new(db))
+        .session(session)
         .build();
-    let openapi = GalahadActixOpenApi::openapi_with_session_cookie_name("app_session");
+    let openapi = GalahadOpenApi::actix(ApiDoc::openapi())
+        .session_cookie_name("app_session")
+        .build();
 
     HttpServer::new(move || {
         App::new()
@@ -147,9 +162,9 @@ The generated OpenAPI document includes:
 - Request and response schemas
 - Cookie authentication using the configured session cookie name
 
-Use `GalahadActixOpenApi::openapi()` when using the default `galahad_session`
-cookie name. Use `GalahadActixOpenApi::openapi_with_session_cookie_name(...)`
-when the Actix integration is configured with a custom cookie name.
+Use `GalahadOpenApi::actix(openapi).build()` when using the default
+`galahad_session` cookie name. Add `.session_cookie_name(...)` when the Actix
+integration is configured with a custom cookie name.
 
 ## HTTP API
 
