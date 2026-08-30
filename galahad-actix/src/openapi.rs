@@ -26,7 +26,7 @@ const SESSION_SECURITY_SCHEME: &str = "GalahadSession";
         ErrorResponse,
     )),
     modifiers(&SessionCookieSecurity),
-    tags((name = "auth", description = "Authentication endpoints"))
+    tags((name = "Galahad", description = "Galahad authentication endpoints"))
 )]
 pub struct GalahadActixOpenApi;
 
