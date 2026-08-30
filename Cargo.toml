@@ -12,7 +12,6 @@ members = [".", "galahad-core", "galahad-seaorm", "galahad-actix"]
 [features]
 default = []
 openapi = ["dep:utoipa", "galahad-actix/openapi"]
-seaorm-postgres = ["galahad-seaorm/postgres"]
 
 [dependencies]
 galahad-actix = { path = "galahad-actix" }

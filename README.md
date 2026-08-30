@@ -41,20 +41,23 @@ your application.
 ```toml
 [dependencies]
 actix-web = "4"
-galahad = { git = "https://github.com/nathan2slime/galahad", features = ["seaorm-postgres"] }
+galahad = { git = "https://github.com/nathan2slime/galahad" }
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
 sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
 ```
 
 Use the Git dependency until the next crate release includes these facade
-features.
+APIs. Enable database-driver features on `galahad-seaorm`; PostgreSQL is shown
+here as the current driver example.
 
 Enable OpenAPI documentation when you want to expose the generated spec or
 Swagger UI from your application:
 
 ```toml
 [dependencies]
-galahad = { git = "https://github.com/nathan2slime/galahad", features = ["seaorm-postgres", "openapi"] }
+galahad = { git = "https://github.com/nathan2slime/galahad", features = ["openapi"] }
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
 utoipa = "5"
 utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 ```
