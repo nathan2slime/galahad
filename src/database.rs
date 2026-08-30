@@ -11,7 +11,9 @@ use galahad_core::{
 use galahad_seaorm::{SeaOrmCredentialRepository, SeaOrmSessionRepository, SeaOrmUserRepository};
 use sea_orm::DatabaseConnection;
 
+use crate::jwt::GalahadJwt;
 use crate::session::GalahadSession;
+use crate::sign_up::GalahadSignUp;
 
 /// SeaORM-backed database configuration for Galahad integrations.
 pub struct GalahadSeaOrm {
@@ -28,6 +30,8 @@ impl GalahadSeaOrm {
 pub(crate) fn build_actix_seaorm(
     db: DatabaseConnection,
     session: GalahadSession,
+    sign_up: GalahadSignUp,
+    jwt: Option<GalahadJwt>,
 ) -> galahad_actix::GalahadActix {
     let users = Arc::new(SeaOrmUserRepository::new(db.clone()));
     let credentials = Arc::new(SeaOrmCredentialRepository::new(db.clone()));
@@ -66,6 +70,12 @@ pub(crate) fn build_actix_seaorm(
         logout_service,
         lookup_service,
     );
+
+    let auth = auth.with_required_sign_up_fields(sign_up.required_fields);
+    let auth = match jwt {
+        Some(jwt) => auth.with_jwt(galahad_actix::JwtConfig::new(jwt.secret).with_ttl(jwt.ttl)),
+        None => auth,
+    };
 
     match session.cookie_name {
         Some(name) => auth.with_session_cookie_name(name),

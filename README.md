@@ -91,9 +91,16 @@ async fn main() -> std::io::Result<()> {
     let session = Galahad::session()
         .cookie_name("my_session_cookie")
         .ttl(Duration::from_secs(60 * 60));
+    let sign_up = Galahad::sign_up()
+        .required_field("name")
+        .required_field("company_id");
+    let jwt = Galahad::jwt(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set"))
+        .ttl(Duration::from_secs(60 * 15));
     let auth = Galahad::actix()
         .database(GalahadSeaOrm::new(db))
         .session(session)
+        .sign_up(sign_up)
+        .jwt(jwt)
         .build();
 
     HttpServer::new(move || App::new().configure(|config| auth.routes(config)))
@@ -179,7 +186,9 @@ Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "password": "correct horse battery staple"
+  "password": "correct horse battery staple",
+  "name": "Ada Lovelace",
+  "company_id": "company-1"
 }
 ```
 
@@ -219,7 +228,8 @@ Set-Cookie: galahad_session=<token>; HttpOnly; SameSite=Lax; Path=/
   "session": {
     "id": "session-id",
     "expires_at_unix_seconds": 1728000000
-  }
+  },
+  "access_token": "jwt-token"
 }
 ```
 
@@ -228,6 +238,13 @@ Set-Cookie: galahad_session=<token>; HttpOnly; SameSite=Lax; Path=/
 ```http
 GET /auth/session
 Cookie: galahad_session=<token>
+```
+
+Or use the JWT returned by sign in:
+
+```http
+GET /auth/session
+Authorization: Bearer <jwt-token>
 ```
 
 Returns the same authenticated-session shape as sign in.

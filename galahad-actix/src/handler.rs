@@ -26,6 +26,14 @@ pub(crate) async fn sign_up(
     auth: web::Data<GalahadActix>,
     request: web::Json<AuthRequest>,
 ) -> Result<web::Json<UserResponse>, ActixAuthError> {
+    if auth
+        .required_sign_up_fields
+        .iter()
+        .any(|field| !request.has_non_empty_field(field))
+    {
+        return Err(ActixAuthError(AuthError::InvalidSignUpField));
+    }
+
     let user = auth
         .sign_up_service
         .sign_up(&SignUpInput::new(&request.email, &request.password))
@@ -58,12 +66,18 @@ pub(crate) async fn sign_in(
         .sign_in(&SignInInput::new(&request.email, &request.password))
         .await?;
     let cookie = auth.session_cookie(&signed_in_session.token);
+    let access_token = auth
+        .jwt
+        .as_ref()
+        .map(|jwt| jwt.issue(&signed_in_session.token, SystemTime::now()))
+        .transpose()?;
+    let mut response = AuthenticatedSessionResponse::from(signed_in_session.authenticated_session);
 
-    Ok(HttpResponse::Ok()
-        .cookie(cookie)
-        .json(AuthenticatedSessionResponse::from(
-            signed_in_session.authenticated_session,
-        )))
+    if let Some(access_token) = access_token {
+        response = response.with_access_token(access_token);
+    }
+
+    Ok(HttpResponse::Ok().cookie(cookie).json(response))
 }
 
 #[cfg_attr(
@@ -72,7 +86,7 @@ pub(crate) async fn sign_in(
         post,
         path = "/auth/sign-out",
         tag = "Galahad",
-        security(("GalahadSession" = [])),
+        security(("GalahadSession" = []), ("GalahadBearer" = [])),
         responses(
             (status = 204, description = "User signed out successfully"),
             (status = 500, description = "Authentication service failure", body = crate::response::ErrorResponse)
@@ -100,7 +114,7 @@ pub(crate) async fn sign_out(
         get,
         path = "/auth/session",
         tag = "Galahad",
-        security(("GalahadSession" = [])),
+        security(("GalahadSession" = []), ("GalahadBearer" = [])),
         responses(
             (status = 200, description = "Current authenticated session", body = AuthenticatedSessionResponse),
             (status = 401, description = "Missing, expired, revoked, or unknown session", body = crate::response::ErrorResponse),
