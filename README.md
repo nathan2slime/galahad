@@ -48,8 +48,27 @@ sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-t
 ```
 
 Use the Git dependency until the next crate release includes these facade
-APIs. Enable database-driver features on `galahad-seaorm`; PostgreSQL is shown
-here as the current driver example.
+APIs. Enable database-driver features on `galahad-seaorm` for the SeaORM driver
+used by your application.
+
+Driver feature examples:
+
+```toml
+# PostgreSQL
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["postgres"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+
+# SQLite
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["sqlite"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+
+# MySQL
+galahad-seaorm = { git = "https://github.com/nathan2slime/galahad", features = ["mysql"] }
+sea-orm = { version = "2.0.2", features = ["sqlx-mysql", "runtime-tokio-rustls"] }
+sea-orm-migration = { version = "2.0.2", features = ["sqlx-mysql", "runtime-tokio-rustls"] }
+```
 
 Enable OpenAPI documentation when you want to expose the generated spec or
 Swagger UI from your application:

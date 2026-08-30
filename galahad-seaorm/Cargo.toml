@@ -16,6 +16,18 @@ postgres = [
     "sea-orm-migration/sqlx-postgres",
     "sea-orm-migration/runtime-tokio-rustls",
 ]
+sqlite = [
+    "sea-orm/sqlx-sqlite",
+    "sea-orm/runtime-tokio-rustls",
+    "sea-orm-migration/sqlx-sqlite",
+    "sea-orm-migration/runtime-tokio-rustls",
+]
+mysql = [
+    "sea-orm/sqlx-mysql",
+    "sea-orm/runtime-tokio-rustls",
+    "sea-orm-migration/sqlx-mysql",
+    "sea-orm-migration/runtime-tokio-rustls",
+]
 
 [dependencies]
 galahad-core = { path = "../galahad-core" }
