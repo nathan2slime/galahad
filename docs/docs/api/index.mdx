@@ -1,0 +1,26 @@
+---
+title: API Overview
+overview: true
+---
+
+Galahad exposes a small facade API through the `galahad` crate.
+
+## Builders
+
+- `Galahad::actix()` builds the Actix integration.
+- `Galahad::session()` configures session cookies and TTL.
+- `Galahad::sign_up()` configures sign-up hooks.
+- `Galahad::jwt(secret)` configures JWT issuance and verification.
+- `GalahadOpenApi::actix(openapi)` merges Galahad routes into an Utoipa spec.
+
+## Integrations
+
+- `GalahadSeaOrm::new(db)` wires SeaORM repositories into the Actix builder.
+- `AuthenticatedUser` extracts a required authenticated user in Actix handlers.
+- `OptionalUser` extracts an optional authenticated user in Actix handlers.
+
+## Core Behavior
+
+The core crate keeps authentication behavior independent from Actix and SeaORM.
+It owns users, credentials, password hashing, sessions, token hashing, and auth
+errors.

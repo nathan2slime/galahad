@@ -1,0 +1,87 @@
+/* Pastel Kiwi + Pink theme */
+
+:root {
+  --rp-c-brand: #f598c7;
+  --rp-c-brand-dark: #e985b5;
+  --rp-c-brand-darker: #d879a6;
+
+  --rp-c-brand-light: #ffbaee;
+  --rp-c-brand-lighter: #ffd2f4;
+
+  --rp-c-brand-tint: rgba(245, 152, 199, 0.12);
+
+  --rp-home-hero-secondary-color: #b8c99e;
+}
+
+/* -----------------------------
+   Light theme
+------------------------------ */
+
+html:not(.dark) {
+  --rp-home-background-bg:
+    radial-gradient(
+      65% 55% at 100% 0%,
+      rgba(255, 186, 238, 0.55) 0%,
+      rgba(255, 186, 238, 0.18) 45%,
+      rgba(252, 250, 245, 0) 75%
+    ),
+    radial-gradient(
+      60% 55% at 0% 0%,
+      rgba(228, 253, 197, 0.8) 0%,
+      rgba(228, 253, 197, 0.3) 45%,
+      rgba(252, 250, 245, 0) 75%
+    ),
+    radial-gradient(
+      45% 45% at 25% 20%,
+      rgba(184, 201, 158, 0.25) 0%,
+      rgba(252, 250, 245, 0) 70%
+    ),
+    radial-gradient(
+      55% 45% at 75% 35%,
+      rgba(245, 152, 199, 0.2) 0%,
+      rgba(252, 250, 245, 0) 70%
+    ),
+    #fcfaf5;
+}
+
+/* -----------------------------
+   Dark theme
+------------------------------ */
+
+html.dark {
+  --rp-c-brand: #fface0;
+  --rp-c-brand-dark: #f598c7;
+  --rp-c-brand-darker: #e985b5;
+
+  --rp-c-brand-light: #ffc8eb;
+  --rp-c-brand-lighter: #ffdcf1;
+
+  --rp-c-brand-tint: rgba(255, 172, 224, 0.14);
+
+  --rp-home-hero-secondary-color: #cdeba8;
+
+  --rp-home-background-bg:
+    radial-gradient(
+      65% 55% at 100% 0%,
+      rgba(245, 152, 199, 0.32) 0%,
+      rgba(245, 152, 199, 0.12) 42%,
+      rgba(20, 18, 22, 0) 75%
+    ),
+    radial-gradient(
+      60% 55% at 0% 0%,
+      rgba(184, 201, 158, 0.3) 0%,
+      rgba(184, 201, 158, 0.1) 45%,
+      rgba(20, 18, 22, 0) 75%
+    ),
+    radial-gradient(
+      50% 45% at 35% 10%,
+      rgba(228, 253, 197, 0.1) 0%,
+      rgba(20, 18, 22, 0) 65%
+    ),
+    radial-gradient(
+      55% 50% at 70% 35%,
+      rgba(255, 186, 238, 0.12) 0%,
+      rgba(20, 18, 22, 0) 70%
+    ),
+    #141216;
+}

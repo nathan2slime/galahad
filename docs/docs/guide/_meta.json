@@ -1,0 +1,10 @@
+[
+  {
+    "type": "dir-section-header",
+    "name": "start",
+    "label": "Start"
+  },
+  "configuration",
+  "routes",
+  "openapi"
+]

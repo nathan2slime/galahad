@@ -1,0 +1,15 @@
+# Errors
+
+Galahad errors expose stable codes for API responses and localization.
+
+Common public codes include:
+
+- `auth.invalid_email`
+- `auth.invalid_password`
+- `auth.invalid_credentials`
+- `auth.session_expired`
+- `auth.session_revoked`
+
+Some internal errors intentionally share generic public messages to avoid user
+enumeration. For example, user existence failures can be reported as `request
+failed` publicly while remaining distinct inside application logs.
