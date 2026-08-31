@@ -10,6 +10,7 @@ mod jwt;
 mod openapi;
 mod request;
 mod response;
+mod sign_up;
 
 pub use config::GalahadActix;
 pub use error::ActixAuthError;
@@ -17,3 +18,4 @@ pub use extractor::{AuthenticatedUser, OptionalUser};
 pub use jwt::{JwtAlgorithm, JwtConfig};
 #[cfg(feature = "openapi")]
 pub use openapi::GalahadActixOpenApi;
+pub use sign_up::{AfterSignUp, AfterSignUpFuture, SignUpContext};

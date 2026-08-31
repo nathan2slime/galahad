@@ -13,18 +13,8 @@ pub(crate) struct AuthRequest {
 }
 
 impl AuthRequest {
-    pub(crate) fn has_non_empty_field(&self, name: &str) -> bool {
-        self.fields.get(name).is_some_and(is_non_empty_field)
-    }
-}
-
-fn is_non_empty_field(value: &Value) -> bool {
-    match value {
-        Value::Null => false,
-        Value::String(value) => !value.trim().is_empty(),
-        Value::Array(value) => !value.is_empty(),
-        Value::Object(value) => !value.is_empty(),
-        Value::Bool(_) | Value::Number(_) => true,
+    pub(crate) fn into_parts(self) -> (String, String, BTreeMap<String, Value>) {
+        (self.email, self.password, self.fields)
     }
 }
 
@@ -33,23 +23,15 @@ mod tests {
     use super::AuthRequest;
 
     #[test]
-    fn detects_non_empty_extra_field() {
+    fn keeps_extra_fields_for_application_hooks() {
         let request: AuthRequest = serde_json::from_str(
             r#"{"email":"user@example.com","password":"correct horse","name":"Ada"}"#,
         )
         .unwrap();
 
-        assert!(request.has_non_empty_field("name"));
-    }
-
-    #[test]
-    fn rejects_missing_or_empty_extra_field() {
-        let request: AuthRequest = serde_json::from_str(
-            r#"{"email":"user@example.com","password":"correct horse","name":"   "}"#,
-        )
-        .unwrap();
-
-        assert!(!request.has_non_empty_field("name"));
-        assert!(!request.has_non_empty_field("company"));
+        assert_eq!(
+            request.fields.get("name").and_then(|value| value.as_str()),
+            Some("Ada")
+        );
     }
 }

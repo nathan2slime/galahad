@@ -10,6 +10,7 @@ use galahad_core::{
 use crate::cookie::{expired_session_cookie_for, session_cookie_for};
 use crate::handler::{current_session, sign_in, sign_out, sign_up};
 use crate::jwt::JwtConfig;
+use crate::sign_up::AfterSignUp;
 
 pub(crate) const DEFAULT_SESSION_COOKIE_NAME: &str = "galahad_session";
 
@@ -21,7 +22,7 @@ pub struct GalahadActix {
     pub(crate) logout_service: Arc<SessionLogoutService>,
     pub(crate) lookup_service: Arc<SessionLookupService>,
     pub(crate) session_cookie_name: String,
-    pub(crate) required_sign_up_fields: Vec<String>,
+    pub(crate) after_sign_up: Option<Arc<dyn AfterSignUp>>,
     pub(crate) jwt: Option<JwtConfig>,
 }
 
@@ -39,7 +40,7 @@ impl GalahadActix {
             logout_service,
             lookup_service,
             session_cookie_name: String::from(DEFAULT_SESSION_COOKIE_NAME),
-            required_sign_up_fields: Vec::new(),
+            after_sign_up: None,
             jwt: None,
         }
     }
@@ -50,20 +51,9 @@ impl GalahadActix {
         self
     }
 
-    /// Requires an additional non-empty field in sign-up requests.
-    pub fn with_required_sign_up_field(mut self, name: impl Into<String>) -> Self {
-        self.required_sign_up_fields.push(name.into());
-        self
-    }
-
-    /// Requires additional non-empty fields in sign-up requests.
-    pub fn with_required_sign_up_fields<I, S>(mut self, fields: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        self.required_sign_up_fields
-            .extend(fields.into_iter().map(Into::into));
+    /// Sets a hook that runs after a successful sign-up.
+    pub fn with_after_sign_up(mut self, hook: Arc<dyn AfterSignUp>) -> Self {
+        self.after_sign_up = Some(hook);
         self
     }
 

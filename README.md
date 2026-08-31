@@ -110,9 +110,13 @@ async fn main() -> std::io::Result<()> {
     let session = Galahad::session()
         .cookie_name("my_session_cookie")
         .ttl(Duration::from_secs(60 * 60));
-    let sign_up = Galahad::sign_up()
-        .required_field("name")
-        .required_field("company_id");
+    let sign_up = Galahad::sign_up().after_action(|context| async move {
+        let name = context.fields.get("name");
+        let company_id = context.fields.get("company_id");
+
+        // Validate and persist application-owned profile fields here.
+        Ok(())
+    });
     let jwt = Galahad::jwt(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set"))
         .algorithm(GalahadJwtAlgorithm::Hs512)
         .issuer("my-api")
@@ -223,6 +227,9 @@ Response:
   "email": "user@example.com"
 }
 ```
+
+Additional sign-up fields are application-owned. Galahad passes them to the
+configured `after_action` hook and does not validate, migrate, or persist them.
 
 ### Sign In
 

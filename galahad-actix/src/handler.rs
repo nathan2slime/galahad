@@ -6,6 +6,7 @@ use galahad_core::{AuthError, SignInInput, SignUpInput};
 use crate::extractor::session_token_from_request;
 use crate::request::AuthRequest;
 use crate::response::{AuthenticatedSessionResponse, UserResponse};
+use crate::sign_up::SignUpContext;
 use crate::{ActixAuthError, GalahadActix};
 
 #[cfg_attr(
@@ -26,18 +27,21 @@ pub(crate) async fn sign_up(
     auth: web::Data<GalahadActix>,
     request: web::Json<AuthRequest>,
 ) -> Result<web::Json<UserResponse>, ActixAuthError> {
-    if auth
-        .required_sign_up_fields
-        .iter()
-        .any(|field| !request.has_non_empty_field(field))
-    {
-        return Err(ActixAuthError(AuthError::InvalidSignUpField));
-    }
+    let (email, password, fields) = request.into_inner().into_parts();
 
     let user = auth
         .sign_up_service
-        .sign_up(&SignUpInput::new(&request.email, &request.password))
+        .sign_up(&SignUpInput::new(email, password))
         .await?;
+
+    if let Some(after_sign_up) = &auth.after_sign_up {
+        after_sign_up
+            .after_sign_up(SignUpContext {
+                user: user.clone(),
+                fields,
+            })
+            .await?;
+    }
 
     Ok(web::Json(UserResponse::from(user)))
 }

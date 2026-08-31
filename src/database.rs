@@ -71,7 +71,10 @@ pub(crate) fn build_actix_seaorm(
         lookup_service,
     );
 
-    let auth = auth.with_required_sign_up_fields(sign_up.required_fields);
+    let auth = match sign_up.after_action {
+        Some(after_action) => auth.with_after_sign_up(after_action),
+        None => auth,
+    };
     let auth = match jwt {
         Some(jwt) => auth.with_jwt(jwt_config(jwt)),
         None => auth,

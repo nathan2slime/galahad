@@ -22,4 +22,4 @@ pub use jwt::{GalahadJwt, GalahadJwtAlgorithm};
 #[cfg(feature = "openapi")]
 pub use openapi::{GalahadActixOpenApiBuilder, GalahadOpenApi};
 pub use session::GalahadSession;
-pub use sign_up::GalahadSignUp;
+pub use sign_up::{GalahadSignUp, GalahadSignUpContext};

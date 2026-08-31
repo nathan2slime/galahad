@@ -1,24 +1,22 @@
+use std::future::Future;
+use std::sync::Arc;
+
+pub use galahad_actix::SignUpContext as GalahadSignUpContext;
+
 /// Sign-up configuration shared by high-level integrations.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct GalahadSignUp {
-    pub(crate) required_fields: Vec<String>,
+    pub(crate) after_action: Option<Arc<dyn galahad_actix::AfterSignUp>>,
 }
 
 impl GalahadSignUp {
-    /// Requires an additional non-empty field in sign-up requests.
-    pub fn required_field(mut self, name: impl Into<String>) -> Self {
-        self.required_fields.push(name.into());
-        self
-    }
-
-    /// Requires additional non-empty fields in sign-up requests.
-    pub fn required_fields<I, S>(mut self, fields: I) -> Self
+    /// Runs a hook after Galahad creates the auth user and password credential.
+    pub fn after_action<F, Fut>(mut self, hook: F) -> Self
     where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
+        F: Fn(GalahadSignUpContext) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<(), galahad_core::AuthError>> + Send + 'static,
     {
-        self.required_fields
-            .extend(fields.into_iter().map(Into::into));
+        self.after_action = Some(Arc::new(hook));
         self
     }
 }

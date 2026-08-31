@@ -5,7 +5,6 @@ use std::fmt;
 pub enum AuthError {
     InvalidEmail,
     InvalidPassword,
-    InvalidSignUpField,
     InvalidCredentials,
     UserNotFound,
     SessionNotFound,
@@ -22,7 +21,6 @@ impl AuthError {
         match self {
             Self::InvalidEmail => "auth.invalid_email",
             Self::InvalidPassword => "auth.invalid_password",
-            Self::InvalidSignUpField => "auth.invalid_signup_field",
             Self::InvalidCredentials => "auth.invalid_credentials",
             Self::UserNotFound => "auth.user_not_found",
             Self::SessionNotFound => "auth.session_not_found",
@@ -48,7 +46,6 @@ impl AuthError {
             Self::UserAlreadyExists | Self::UserNotFound => "request failed",
             Self::InvalidEmail => "invalid email",
             Self::InvalidPassword => "invalid password",
-            Self::InvalidSignUpField => "invalid sign-up field",
             Self::InvalidCredentials => "invalid credentials",
             Self::SessionNotFound => "session not found",
             Self::SessionExpired => "session has expired",
@@ -64,7 +61,6 @@ impl fmt::Display for AuthError {
         let message = match self {
             Self::InvalidEmail => "invalid email",
             Self::InvalidPassword => "invalid password",
-            Self::InvalidSignUpField => "invalid sign-up field",
             Self::InvalidCredentials => "invalid credentials",
             Self::UserNotFound => "user not found",
             Self::SessionNotFound => "session not found",
@@ -91,10 +87,6 @@ mod tests {
     fn displays_authentication_error_in_english() {
         assert_eq!(AuthError::InvalidEmail.to_string(), "invalid email");
         assert_eq!(AuthError::InvalidPassword.to_string(), "invalid password");
-        assert_eq!(
-            AuthError::InvalidSignUpField.to_string(),
-            "invalid sign-up field"
-        );
         assert_eq!(
             AuthError::InvalidCredentials.to_string(),
             "invalid credentials"
@@ -125,10 +117,6 @@ mod tests {
     fn exposes_stable_localization_codes() {
         assert_eq!(AuthError::InvalidEmail.code(), "auth.invalid_email");
         assert_eq!(AuthError::InvalidPassword.code(), "auth.invalid_password");
-        assert_eq!(
-            AuthError::InvalidSignUpField.code(),
-            "auth.invalid_signup_field"
-        );
         assert_eq!(
             AuthError::InvalidCredentials.code(),
             "auth.invalid_credentials"
@@ -163,10 +151,6 @@ mod tests {
             "auth.invalid_credentials"
         );
         assert_eq!(AuthError::InvalidEmail.public_code(), "auth.invalid_email");
-        assert_eq!(
-            AuthError::InvalidSignUpField.public_code(),
-            "auth.invalid_signup_field"
-        );
     }
 
     #[test]
@@ -183,10 +167,6 @@ mod tests {
         assert_eq!(
             AuthError::InvalidPassword.public_message(),
             "invalid password"
-        );
-        assert_eq!(
-            AuthError::InvalidSignUpField.public_message(),
-            "invalid sign-up field"
         );
     }
 }
